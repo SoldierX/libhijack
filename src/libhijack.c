@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,12 +16,12 @@
 #include "map.h"
 #include "hijack_elf.h"
 
-int GetErrorCode(HIJACK *hijack)
+EXPORTED_SYM int GetErrorCode(HIJACK *hijack)
 {
 	return hijack->lastErrorCode;
 }
 
-const char *GetErrorString(HIJACK *hijack)
+EXPORTED_SYM const char *GetErrorString(HIJACK *hijack)
 {
 	switch (hijack->lastErrorCode)
 	{
@@ -47,7 +48,7 @@ const char *GetErrorString(HIJACK *hijack)
 	}
 }
 
-HIJACK *InitHijack(void)
+EXPORTED_SYM HIJACK *InitHijack(void)
 {
 	HIJACK *hijack;
 	unsigned long baseaddr = BASEADDR;
@@ -65,19 +66,19 @@ HIJACK *InitHijack(void)
 	return hijack;
 }
 
-bool IsFlagSet(HIJACK *hijack, unsigned int flag)
+EXPORTED_SYM bool IsFlagSet(HIJACK *hijack, unsigned int flag)
 {
 	return (hijack->flags & flag) == flag;
 }
 
-int ToggleFlag(HIJACK *hijack, unsigned int flag)
+EXPORTED_SYM int ToggleFlag(HIJACK *hijack, unsigned int flag)
 {
 	hijack->flags ^= flag;
 	
 	return SetError(hijack, ERROR_NONE);
 }
 
-void *GetValue(HIJACK *hijack, int vkey)
+EXPORTED_SYM void *GetValue(HIJACK *hijack, int vkey)
 {
 	switch (vkey)
 	{
@@ -88,7 +89,7 @@ void *GetValue(HIJACK *hijack, int vkey)
 	}
 }
 
-int SetValue(HIJACK *hijack, int vkey, void *value)
+EXPORTED_SYM int SetValue(HIJACK *hijack, int vkey, void *value)
 {
 	switch (vkey)
 	{
@@ -100,12 +101,12 @@ int SetValue(HIJACK *hijack, int vkey, void *value)
 	}
 }
 
-bool IsAttached(HIJACK *hijack)
+EXPORTED_SYM bool IsAttached(HIJACK *hijack)
 {
 	return hijack->isAttached;
 }
 
-int AssignPid(HIJACK *hijack, pid_t pid)
+EXPORTED_SYM int AssignPid(HIJACK *hijack, pid_t pid)
 {
 	if (IsAttached(hijack))
 		return SetError(hijack, ERROR_ATTACHED);
@@ -118,7 +119,7 @@ int AssignPid(HIJACK *hijack, pid_t pid)
 	return SetError(hijack, ERROR_NONE);
 }
 
-int Attach(HIJACK *hijack)
+EXPORTED_SYM int Attach(HIJACK *hijack)
 {
 	int status;
 	
@@ -150,7 +151,7 @@ int Attach(HIJACK *hijack)
 	return SetError(hijack, ERROR_NONE);
 }
 
-int Detach(HIJACK *hijack)
+EXPORTED_SYM int Detach(HIJACK *hijack)
 {
 	if (IsAttached(hijack) == false)
 		return SetError(hijack, ERROR_NOTATTACHED);
@@ -163,7 +164,7 @@ int Detach(HIJACK *hijack)
 	return SetError(hijack, ERROR_NONE);
 }
 
-int LocateSystemCall(HIJACK *hijack)
+EXPORTED_SYM int LocateSystemCall(HIJACK *hijack)
 {
 	struct link_map *map;
 	
@@ -181,7 +182,7 @@ int LocateSystemCall(HIJACK *hijack)
 	return SetError(hijack, ERROR_NONE);
 }
 
-int ReadData(HIJACK *hijack, unsigned long addr, unsigned char *buf, size_t sz)
+EXPORTED_SYM int ReadData(HIJACK *hijack, unsigned long addr, unsigned char *buf, size_t sz)
 {
 	void *p;
 	
@@ -203,7 +204,7 @@ int ReadData(HIJACK *hijack, unsigned long addr, unsigned char *buf, size_t sz)
 	return GetErrorCode(hijack);
 }
 
-int WriteData(HIJACK *hijack, unsigned long addr, unsigned char *buf, size_t sz)
+EXPORTED_SYM int WriteData(HIJACK *hijack, unsigned long addr, unsigned char *buf, size_t sz)
 {
 	if (!(buf) || !sz)
 		return SetError(hijack, ERROR_BADARG);
@@ -214,7 +215,7 @@ int WriteData(HIJACK *hijack, unsigned long addr, unsigned char *buf, size_t sz)
 	return write_data(hijack, addr, buf, sz);
 }
 
-unsigned long MapMemory(HIJACK *hijack, unsigned long addr, size_t sz, unsigned long flags, unsigned long prot)
+EXPORTED_SYM unsigned long MapMemory(HIJACK *hijack, unsigned long addr, size_t sz, unsigned long flags, unsigned long prot)
 {
 	if (!IsAttached(hijack))
 		return SetError(hijack, ERROR_NOTATTACHED);
@@ -222,7 +223,7 @@ unsigned long MapMemory(HIJACK *hijack, unsigned long addr, size_t sz, unsigned 
 	return map_memory_absolute(hijack, addr, sz, flags, prot);
 }
 
-int InjectShellcode(HIJACK *hijack, unsigned long addr, void *data, size_t sz)
+EXPORTED_SYM int InjectShellcode(HIJACK *hijack, unsigned long addr, void *data, size_t sz)
 {
 	if (!IsAttached(hijack))
 		return SetError(hijack, ERROR_NOTATTACHED);
@@ -230,7 +231,7 @@ int InjectShellcode(HIJACK *hijack, unsigned long addr, void *data, size_t sz)
 	return inject_shellcode(hijack, addr, data, sz);
 }
 
-struct user_regs_struct *GetRegs(HIJACK *hijack)
+EXPORTED_SYM struct user_regs_struct *GetRegs(HIJACK *hijack)
 {
 	struct user_regs_struct *ret;
 	
@@ -254,7 +255,7 @@ struct user_regs_struct *GetRegs(HIJACK *hijack)
 	return ret;
 }
 
-int SetRegs(HIJACK *hijack, struct user_regs_struct *regs)
+EXPORTED_SYM int SetRegs(HIJACK *hijack, struct user_regs_struct *regs)
 {
 	if (!IsAttached(hijack))
 		return SetError(hijack, ERROR_NOTATTACHED);
@@ -265,7 +266,7 @@ int SetRegs(HIJACK *hijack, struct user_regs_struct *regs)
 	return SetError(hijack, ERROR_NONE);
 }
 
-unsigned long FindFunctionInGot(HIJACK *hijack, unsigned long addr)
+EXPORTED_SYM unsigned long FindFunctionInGot(HIJACK *hijack, unsigned long addr)
 {
 	return find_func_addr_in_got(hijack, addr);
 }

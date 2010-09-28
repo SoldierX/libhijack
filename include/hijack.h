@@ -5,6 +5,8 @@
 #include <elf.h>
 #include <link.h>
 
+#define EXPORTED_SYM __attribute__((visibility("default")))
+
 #define ERROR_NONE				0
 #define ERROR_ATTACHED			1
 #define ERROR_NOTATTACHED		2

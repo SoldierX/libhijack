@@ -14,7 +14,7 @@ int SetError(HIJACK *hijack, int errorCode)
 	return errorCode;
 }
 
-void ClearError(HIJACK *hijack)
+EXPORTED_SYM void ClearError(HIJACK *hijack)
 {
 	hijack->lastErrorCode = ERROR_NONE;
 }

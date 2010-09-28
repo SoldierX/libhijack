@@ -21,7 +21,7 @@ void free_func(FUNC *);
 CBRESULT func_found_uncached(HIJACK *, struct link_map *, char *, unsigned long, size_t);
 void print_funcs(FUNC *);
 
-int LocateAllFunctions(HIJACK *hijack)
+EXPORTED_SYM int LocateAllFunctions(HIJACK *hijack)
 {
 	struct link_map *linkmap;
 	
@@ -76,7 +76,7 @@ CBRESULT func_found(HIJACK *hijack, struct link_map *linkmap, char *name, unsign
 	return CONTPROC;
 }
 
-FUNC *FindAllFunctionsByName(HIJACK *hijack, char *name, bool mid)
+EXPORTED_SYM FUNC *FindAllFunctionsByName(HIJACK *hijack, char *name, bool mid)
 {
 	FUNC *ret=NULL, *f, *b=NULL;
 	bool found;
@@ -119,7 +119,7 @@ FUNC *FindAllFunctionsByName(HIJACK *hijack, char *name, bool mid)
 	return b;
 }
 
-FUNC *FindAllFunctionsByLibraryName(HIJACK *hijack, char *libname)
+EXPORTED_SYM FUNC *FindAllFunctionsByLibraryName(HIJACK *hijack, char *libname)
 {
 	FUNC *ret=NULL, *f, *b=NULL;
 	bool found;
@@ -159,7 +159,7 @@ FUNC *FindAllFunctionsByLibraryName(HIJACK *hijack, char *libname)
 	return b;
 }
 
-FUNC *FindFunctionInLibraryByName(HIJACK *hijack, char *libname, char *funcname)
+EXPORTED_SYM FUNC *FindFunctionInLibraryByName(HIJACK *hijack, char *libname, char *funcname)
 {
 	FUNC *ret=NULL, *next, *prev;
 	struct link_map *linkmap;

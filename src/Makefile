@@ -1,13 +1,13 @@
 TARGET=libhijack.so.0.4
 SONAME=libhijack.so.0
 CC=gcc
-ARCH != uname -m
-CFLAGS=-fPIC -g -std=c89 -pedantic -Wall -DDEBUG -D${ARCH} -I../include
-SRCS=libhijack.c error.c misc.c ptrace.c map.c elf.c func.c
-OBJS=libhijack.o error.o misc.o ptrace.o map.o elf.o func.o
+ARCH=i686
+CFLAGS=-fPIC -g -Wall -DDEBUG -D${ARCH} -I../include -fvisibility=hidden
+SRCS=libhijack.c error.c misc.c ptrace.c map.c elf.c func.c so.c
+OBJS=libhijack.o error.o misc.o ptrace.o map.o elf.o func.o so.o
 
 ${TARGET}: ${OBJS}
-	${CC} ${CFLAGS} -shared -Wl,-soname,${SONAME} -o ${TARGET} ${OBJS}
+	${CC} -shared -Wl,-soname,${SONAME} -o ${TARGET} ${OBJS}
 
 install: ${TARGET}
 	cp ${TARGET} /usr/lib
