@@ -13,6 +13,7 @@ typedef struct _func
 
 int LocateAllFunctions(HIJACK *);
 FUNC *FindAllFunctionsByName(HIJACK *, char *, bool);
+FUNC *FindAllFunctionsByLibraryName_uncached(HIJACK *, char *);
 FUNC *FindAllFunctionsByLibraryName(HIJACK *, char *);
 FUNC *FindFunctionInLibraryByName(HIJACK *hijack, char *, char *);
 

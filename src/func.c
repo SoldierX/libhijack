@@ -159,6 +159,45 @@ EXPORTED_SYM FUNC *FindAllFunctionsByLibraryName(HIJACK *hijack, char *libname)
 	return b;
 }
 
+EXPORTED_SYM FUNC *FindAllFunctionsByLibraryName_uncached(HIJACK *hijack, char *libname)
+{
+	struct link_map *linkmap;
+	char *t_libname;
+	
+	if (!IsAttached(hijack))
+		return NULL;
+	
+	/*
+	 * Do this in two steps:
+	 * 1) Cache all functions in libraries that have libname in its name
+	 * 2) Remove all functions which are not named funcname
+	 * This is really more like partially-caching. However, because of existing APIs, it has to be done this way
+	 */
+	clean_uncached(hijack);
+	linkmap = hijack->linkhead;
+	for (linkmap = hijack->linkhead; linkmap != NULL; linkmap = get_next_linkmap(hijack, (unsigned long)(linkmap->l_next)))
+	{
+		t_libname = read_str(hijack, (unsigned long)(linkmap->l_name));
+		if (!(t_libname) || !strlen(t_libname))
+			continue;
+		
+		if (IsFlagSet(hijack, F_DEBUG_VERBOSE))
+				fprintf(stderr, "[*] Looking at %s\n", t_libname);
+		
+		if (strstr(t_libname, libname))
+		{
+			if (IsFlagSet(hijack, F_DEBUG_VERBOSE))
+				fprintf(stderr, "[*] Loading from %s\n", t_libname);
+		
+			parse_linkmap(hijack, linkmap, func_found_uncached);
+			
+			return hijack->uncached_funcs;
+		}
+	}
+	
+	return NULL;
+}
+
 EXPORTED_SYM FUNC *FindFunctionInLibraryByName(HIJACK *hijack, char *libname, char *funcname)
 {
 	FUNC *ret=NULL, *next, *prev;
