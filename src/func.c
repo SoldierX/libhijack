@@ -33,6 +33,12 @@ void free_func(FUNC *);
 CBRESULT func_found_uncached(HIJACK *, struct link_map *, char *, unsigned long, size_t);
 void print_funcs(FUNC *);
 
+/**
+ * Find and cache all dynamically loaded functions in process
+ * @param hijack Pointer to the HIJACK instance
+ * \ingroup libhijack InjectionPrep
+ * \warning This function can take a long time!
+ */
 EXPORTED_SYM int LocateAllFunctions(HIJACK *hijack)
 {
 	struct link_map *linkmap;
@@ -88,6 +94,14 @@ CBRESULT func_found(HIJACK *hijack, struct link_map *linkmap, char *name, unsign
 	return CONTPROC;
 }
 
+/**
+ * Find all functions with a given name in a process
+ * @param hijack Pointer to the HIJACK instance
+ * @param name Name of the function to find
+ * @param mid If true, use strstr() to find the name, otherwise use strcmp()
+ * \ingroup libhijack InjectionPrep
+ * \warning This function requires caching the functions, which can take a long time.
+ */
 EXPORTED_SYM FUNC *FindAllFunctionsByName(HIJACK *hijack, char *name, bool mid)
 {
 	FUNC *ret=NULL, *f, *b=NULL;
@@ -131,6 +145,13 @@ EXPORTED_SYM FUNC *FindAllFunctionsByName(HIJACK *hijack, char *name, bool mid)
 	return b;
 }
 
+/**
+ * Find all dynamically loaded functions in a loaded library
+ * @param hijack Pointer to the HIJACK instance
+ * @param libname Name of library
+ * \ingroup libhijack InjectionPrep
+ * \warning This function requires caching the functions, which can take a long time.
+ */
 EXPORTED_SYM FUNC *FindAllFunctionsByLibraryName(HIJACK *hijack, char *libname)
 {
 	FUNC *ret=NULL, *f, *b=NULL;
@@ -171,6 +192,13 @@ EXPORTED_SYM FUNC *FindAllFunctionsByLibraryName(HIJACK *hijack, char *libname)
 	return b;
 }
 
+/**
+ * Find all dynamically loaded functions in a loaded library
+ * @param hijack Pointer to the HIJACK instance
+ * @param libname Name of the library
+ * \ingroup libhijack InjectionPrep
+ * \warning Even though this function doesn't use the cache, it can still take a long time
+ */
 EXPORTED_SYM FUNC *FindAllFunctionsByLibraryName_uncached(HIJACK *hijack, char *libname)
 {
 	struct link_map *linkmap;
@@ -210,6 +238,14 @@ EXPORTED_SYM FUNC *FindAllFunctionsByLibraryName_uncached(HIJACK *hijack, char *
 	return NULL;
 }
 
+/**
+ * Find a function in a dynamically loaded library
+ * @param hijack Pointer to the HIJACK instance
+ * @param libname Name of the library
+ * @param funcname Name of the function
+ * \ingroup libhijack InjectionPrep
+ * \warning Even though this function doesn't use the cache, it can still take a long time
+ */
 EXPORTED_SYM FUNC *FindFunctionInLibraryByName(HIJACK *hijack, char *libname, char *funcname)
 {
 	FUNC *ret=NULL, *next, *prev;

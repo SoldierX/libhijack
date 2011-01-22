@@ -26,6 +26,11 @@ int SetError(HIJACK *hijack, int errorCode)
 	return errorCode;
 }
 
+/**
+ * Clear any set error codes
+ * @param hijack Pointer to the HIJACK instance
+ * \ingroup libhijack
+ */
 EXPORTED_SYM void ClearError(HIJACK *hijack)
 {
 	hijack->lastErrorCode = ERROR_NONE;
