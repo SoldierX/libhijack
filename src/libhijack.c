@@ -28,11 +28,21 @@
 #include "map.h"
 #include "hijack_elf.h"
 
+/**
+ * Returns last reported error code
+ * @param hijack Pointer to HIJACK instance
+ * \ingroup libhijack
+ */
 EXPORTED_SYM int GetErrorCode(HIJACK *hijack)
 {
 	return hijack->lastErrorCode;
 }
 
+/**
+ * Returns user-friendly error string
+ * @param hijack Pointer to HIJACK instance
+ * \ingroup libhijack
+ */
 EXPORTED_SYM const char *GetErrorString(HIJACK *hijack)
 {
 	switch (hijack->lastErrorCode)
@@ -60,6 +70,10 @@ EXPORTED_SYM const char *GetErrorString(HIJACK *hijack)
 	}
 }
 
+/**
+ * Creates and initializes HIJACK instance
+ * \ingroup libhijack
+ */
 EXPORTED_SYM HIJACK *InitHijack(void)
 {
 	HIJACK *hijack;
@@ -78,11 +92,23 @@ EXPORTED_SYM HIJACK *InitHijack(void)
 	return hijack;
 }
 
+/**
+ * Returns boolean true if flag is set, false if not
+ * @param hijack Pointer to HIJACK instance
+ * @param flag Flag to check
+ * \ingroup libhijack
+ */
 EXPORTED_SYM bool IsFlagSet(HIJACK *hijack, unsigned int flag)
 {
 	return (hijack->flags & flag) == flag;
 }
 
+/**
+ * Toggle flag on/off
+ * @param hijack Pointer to HIJACK instance
+ * @param flag Flag to toggle
+ * \ingroup libhijack
+ */
 EXPORTED_SYM int ToggleFlag(HIJACK *hijack, unsigned int flag)
 {
 	hijack->flags ^= flag;
@@ -90,6 +116,12 @@ EXPORTED_SYM int ToggleFlag(HIJACK *hijack, unsigned int flag)
 	return SetError(hijack, ERROR_NONE);
 }
 
+/**
+ * Gets libhijack-specific settings
+ * @param hijack Pointer to HIJACK instance
+ * @param vkey Settings key to get
+ * \ingroup libhijack
+ */
 EXPORTED_SYM void *GetValue(HIJACK *hijack, int vkey)
 {
 	switch (vkey)
@@ -101,6 +133,13 @@ EXPORTED_SYM void *GetValue(HIJACK *hijack, int vkey)
 	}
 }
 
+/**
+ * Sets libhijack-specific settings
+ * @param hijack Pointer to HIJACK instance
+ * @param vkey Settings key to set
+ * @param value Pointer to data containing setting
+ * \ingroup libhijack
+ */
 EXPORTED_SYM int SetValue(HIJACK *hijack, int vkey, void *value)
 {
 	switch (vkey)
@@ -113,11 +152,22 @@ EXPORTED_SYM int SetValue(HIJACK *hijack, int vkey, void *value)
 	}
 }
 
+/**
+ * Returns boolean true if libhijack is attached to a process
+ * @param hijack Pointer to HIJACK instance
+ * \ingroup libhijack
+ */
 EXPORTED_SYM bool IsAttached(HIJACK *hijack)
 {
 	return hijack->isAttached;
 }
 
+/**
+ * Assign PID of process to attach to
+ * @param hijack Pointer to HIJACK instance
+ * @param pid PID of process
+ * \ingroup libhijack
+ */
 EXPORTED_SYM int AssignPid(HIJACK *hijack, pid_t pid)
 {
 	if (IsAttached(hijack))
@@ -131,6 +181,11 @@ EXPORTED_SYM int AssignPid(HIJACK *hijack, pid_t pid)
 	return SetError(hijack, ERROR_NONE);
 }
 
+/**
+ * Attach to process
+ * @param hijack Pointer to HIJACK instance
+ * \ingroup libhijack
+ */
 EXPORTED_SYM int Attach(HIJACK *hijack)
 {
 	int status;
@@ -163,6 +218,11 @@ EXPORTED_SYM int Attach(HIJACK *hijack)
 	return SetError(hijack, ERROR_NONE);
 }
 
+/**
+ * Detach from process
+ * @param hijack Pointer to HIJACK instance
+ * \ingroup libhijack
+ */
 EXPORTED_SYM int Detach(HIJACK *hijack)
 {
 	if (IsAttached(hijack) == false)
@@ -176,6 +236,11 @@ EXPORTED_SYM int Detach(HIJACK *hijack)
 	return SetError(hijack, ERROR_NONE);
 }
 
+/**
+ * Locate where the 32- or 64-bit kernel syscall is
+ * @param hijack Pointer to HIJACK instance
+ * \ingroup libhijack
+ */
 EXPORTED_SYM int LocateSystemCall(HIJACK *hijack)
 {
 	struct link_map *map;
@@ -194,6 +259,14 @@ EXPORTED_SYM int LocateSystemCall(HIJACK *hijack)
 	return SetError(hijack, ERROR_NONE);
 }
 
+/**
+ * Read data from the process
+ * @param hijack Pointer to the HIJACK instance
+ * @param addr Address from where to read
+ * @param buf Buffer to store what was read
+ * @param sz How many bytes to read
+ * \ingroup libhijack
+ */
 EXPORTED_SYM int ReadData(HIJACK *hijack, unsigned long addr, unsigned char *buf, size_t sz)
 {
 	void *p;
@@ -216,6 +289,14 @@ EXPORTED_SYM int ReadData(HIJACK *hijack, unsigned long addr, unsigned char *buf
 	return GetErrorCode(hijack);
 }
 
+/**
+ * Write data to the process
+ * @param hijack Pointer to the HIJACK instance
+ * @param addr Address to which the data will be written
+ * @param buf Buffer containing the data
+ * @param sz Number of bytes to write
+ * \ingroup libhijack
+ */
 EXPORTED_SYM int WriteData(HIJACK *hijack, unsigned long addr, unsigned char *buf, size_t sz)
 {
 	if (!(buf) || !sz)
@@ -227,6 +308,15 @@ EXPORTED_SYM int WriteData(HIJACK *hijack, unsigned long addr, unsigned char *bu
 	return write_data(hijack, addr, buf, sz);
 }
 
+/**
+ * Create a new mapping inside a process
+ * @param hijack Pointer to the HIJACK instance
+ * @param addr Address of the newly created mapping
+ * @param sz How many bytes to map (needs to be page-aligned)
+ * @param flags Memory mapping flags (man mmap)
+ * @param prot Memory mapping prot (man mmap)
+ * \ingroup libhijack InjectionPrep
+ */
 EXPORTED_SYM unsigned long MapMemory(HIJACK *hijack, unsigned long addr, size_t sz, unsigned long flags, unsigned long prot)
 {
 	if (!IsAttached(hijack))
@@ -235,6 +325,14 @@ EXPORTED_SYM unsigned long MapMemory(HIJACK *hijack, unsigned long addr, size_t 
 	return map_memory_absolute(hijack, addr, sz, flags, prot);
 }
 
+/**
+ * Inject arbitrary code
+ * @param hijack Pointer to the HIJACK instance
+ * @param addr Address in which to write the arbitrary code
+ * @param data The code to be written
+ * @param sz Number of bytes to write
+ * \ingroup libhijack
+ */
 EXPORTED_SYM int InjectShellcode(HIJACK *hijack, unsigned long addr, void *data, size_t sz)
 {
 	if (!IsAttached(hijack))
@@ -243,6 +341,11 @@ EXPORTED_SYM int InjectShellcode(HIJACK *hijack, unsigned long addr, void *data,
 	return inject_shellcode(hijack, addr, data, sz);
 }
 
+/**
+ * Get the CPU registers
+ * @param hijack Pointer to the HIJACK instance
+ * \ingroup libhijack
+ */
 EXPORTED_SYM struct user_regs_struct *GetRegs(HIJACK *hijack)
 {
 	struct user_regs_struct *ret;
@@ -267,6 +370,12 @@ EXPORTED_SYM struct user_regs_struct *GetRegs(HIJACK *hijack)
 	return ret;
 }
 
+/**
+ * Set the CPU registers
+ * @param hijack Pointer to the HIJACK instance
+ * @param regs Pointer to the CPU registers struct
+ * \ingroup libhijack
+ */
 EXPORTED_SYM int SetRegs(HIJACK *hijack, struct user_regs_struct *regs)
 {
 	if (!IsAttached(hijack))
@@ -278,6 +387,12 @@ EXPORTED_SYM int SetRegs(HIJACK *hijack, struct user_regs_struct *regs)
 	return SetError(hijack, ERROR_NONE);
 }
 
+/**
+ * Find the location of a function address in the GOT
+ * @param hijack Pointer to the HIJACK instance
+ * @param addr Address of the function being looked up
+ * \ingroup libhijack
+ */
 EXPORTED_SYM unsigned long FindFunctionInGot(HIJACK *hijack, unsigned long addr)
 {
 	return find_func_addr_in_got(hijack, addr);

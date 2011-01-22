@@ -1,0 +1,8 @@
+/**
+  * \defgroup libhijack libhijack Main API
+  * \defgroup InjectionPrep Injection Prep API
+  */
+/** \mainpage libhijack
+  * \section about About
+  * libhijack makes Runtime Process Infection (RPI) easy.
+  */
