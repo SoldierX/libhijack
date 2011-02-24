@@ -23,11 +23,11 @@ int main(int argc, char *argv[])
 {
 	HIJACK *hijack;
 	FUNC *funcs, *func;
-	unsigned long shellcode_addr, filename_addr;
+	unsigned long shellcode_addr, filename_addr, dlopen_addr;
 	struct stat sb;
 	char *shellcode, *p1;
 	int fd;
-	struct user_regs_struct *regs;
+	struct user_regs_struct *regs, *backup;
 	
 	if (argc != 4)
 		usage(argv[0]);
@@ -40,6 +40,8 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "[-] Couldn't attach!\n");
 		exit(EXIT_FAILURE);
 	}
+	backup = GetRegs(hijack);
+	regs = malloc(sizeof(struct user_regs_struct));
 	
 	stat(argv[2], &sb);
 	shellcode = malloc(sb.st_size);
@@ -48,33 +50,22 @@ int main(int argc, char *argv[])
 	read(fd, shellcode, sb.st_size);
 	close(fd);
 	
-	regs = GetRegs(hijack);
-	
+	LocateAllFunctions(hijack);
 	funcs = FindFunctionInLibraryByName(hijack, "/lib/libdl.so.2", "dlopen");
 	if (!(funcs))
 	{
 		fprintf(stderr, "[-] Couldn't locate dlopen!\n");
 		exit(EXIT_FAILURE);
 	}
+	dlopen_addr = funcs->vaddr;
+	printf("dlopen_addr: 0x%08lx\n", dlopen_addr);
 	
-	if (regs->orig_eax >= 0)
-	{
-		switch (regs->eax)
-		{
-			case -514: /* -ERESTARTNOHAND */
-			case -512: /* -ERESTARTSYS */
-			case -513: /* -ERESTARTNOINTR */
-			case -516: /* -ERESTART_RESTARTBLOCK */
-				regs->eip += 2;
-				break;
-		}
-	}
-	
-	p1 = memmem(shellcode, sb.st_size, "\x11\x11\x11\x11", 4);
-	memcpy(p1, &(regs->eip), 4);
+	memcpy(regs, backup, sizeof(struct user_regs_struct));
 	
 	LocateSystemCall(hijack);
 	filename_addr = MapMemory(hijack, (unsigned long)NULL, 4096, MAP_ANONYMOUS | MAP_PRIVATE, PROT_READ | PROT_EXEC | PROT_WRITE);
+	
+	memcpy(regs, backup, sizeof(struct user_regs_struct));
 	
 	p1 = memmem(shellcode, sb.st_size, "\x22\x22\x22\x22", 4);
 	memcpy(p1, &filename_addr, 4);
@@ -86,10 +77,14 @@ int main(int argc, char *argv[])
 	printf("eip: 0x%08lx\n", regs->eip);
 	
 	p1 = memmem(shellcode, sb.st_size, "\x33\x33\x33\x33", 4);
-	memcpy(p1, &shellcode_addr, 4);
+	memcpy(p1, &dlopen_addr, 4);
 	
 	WriteData(hijack, filename_addr, (unsigned char *)argv[3], strlen(argv[3]));
 	WriteData(hijack, shellcode_addr, (unsigned char *)shellcode, sb.st_size);
+	
+	regs->esp -= 4;
+	SetRegs(hijack, regs);
+	WriteData(hijack, regs->esp, &(regs->eip), 4);
 	
 	regs->eip = shellcode_addr;
 	
