@@ -360,7 +360,7 @@ EXPORTED_SYM struct user_regs_struct *GetRegs(HIJACK *hijack)
 	if (!(ret))
 		return NULL;
 	
-	if (ptrace(PTRACE_GETREGS, hijack->pid, NULL, NULL) < 0)
+	if (ptrace(PTRACE_GETREGS, hijack->pid, NULL, ret) < 0)
 	{
 		SetError(hijack, ERROR_SYSCALL);
 		free(ret);
