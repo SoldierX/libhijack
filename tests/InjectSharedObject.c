@@ -15,7 +15,7 @@
 
 void usage(const char *name)
 {
-	fprintf(stderr, "USAGE: %s <pid> <shellcode stub> <shared object>\n", name);
+	fprintf(stderr, "USAGE: %s <pid> <shellcode stub> <shared object> <function>\n", name);
 	exit(EXIT_FAILURE);
 }
 
@@ -23,13 +23,13 @@ int main(int argc, char *argv[])
 {
 	HIJACK *hijack;
 	FUNC *funcs, *func;
-	unsigned long shellcode_addr, filename_addr, dlopen_addr;
+	unsigned long shellcode_addr, filename_addr, dlopen_addr, dlsym_addr, funcname_addr, pltgot_addr;
 	struct stat sb;
 	char *shellcode, *p1;
 	int fd;
 	struct user_regs_struct *regs, *backup;
 	
-	if (argc != 4)
+	if (argc != 5)
 		usage(argv[0]);
 	
 	hijack = InitHijack();
@@ -60,6 +60,15 @@ int main(int argc, char *argv[])
 	dlopen_addr = funcs->vaddr;
 	printf("dlopen_addr: 0x%08lx\n", dlopen_addr);
 	
+	funcs = FindFunctionInLibraryByName(hijack, "/lib/libdl.so.2", "dlsym");
+	if (!(funcs))
+	{
+		fprintf(stderr, "[-] Couldn't locate dlsym!\n");
+		exit(EXIT_FAILURE);
+	}
+	dlsym_addr = funcs->vaddr;
+	printf("dlsym_addr: 0x%08lx\n", dlsym_addr);
+	
 	memcpy(regs, backup, sizeof(struct user_regs_struct));
 	
 	LocateSystemCall(hijack);
@@ -70,7 +79,8 @@ int main(int argc, char *argv[])
 	p1 = memmem(shellcode, sb.st_size, "\x22\x22\x22\x22", 4);
 	memcpy(p1, &filename_addr, 4);
 	
-	shellcode_addr = filename_addr + strlen(argv[3]) + 1;
+	funcname_addr = filename_addr + strlen(argv[3]) + 1;
+	shellcode_addr = funcname_addr + strlen(argv[4]) + 1;
 	printf("filename_addr: 0x%08lx\n", filename_addr);
 	printf("shellcode_addr: 0x%08lx\n", shellcode_addr);
 	printf("esp: 0x%08lx\n", regs->esp);
@@ -79,7 +89,30 @@ int main(int argc, char *argv[])
 	p1 = memmem(shellcode, sb.st_size, "\x33\x33\x33\x33", 4);
 	memcpy(p1, &dlopen_addr, 4);
 	
+	p1 = memmem(shellcode, sb.st_size, "\x44\x44\x44\x44", 4);
+	memcpy(p1, &funcname_addr, 4);
+	
+	p1 = memmem(shellcode, sb.st_size, "\x55\x55\x55\x55", 4);
+	memcpy(p1, &dlsym_addr, 4);
+	
+	funcs = FindAllFunctionsByName(hijack, argv[4], false);
+	for (func = funcs; func != NULL; func = func->next)
+	{
+		if (!(func->name))
+			continue;
+		
+		pltgot_addr = FindFunctionInGot(hijack, func->vaddr);
+		if (pltgot_addr > 0)
+			break;
+	}
+	
+	printf("pltgot_addr: 0x%08lx\n", pltgot_addr);
+	
+	p1 = memmem(shellcode, sb.st_size, "\x66\x66\x66\x66", 4);
+	memcpy(p1, &pltgot_addr, 4);
+	
 	WriteData(hijack, filename_addr, (unsigned char *)argv[3], strlen(argv[3]));
+	WriteData(hijack, funcname_addr, (unsigned char *)argv[4], strlen(argv[4]));
 	WriteData(hijack, shellcode_addr, (unsigned char *)shellcode, sb.st_size);
 	
 	regs->esp -= 4;
