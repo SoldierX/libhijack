@@ -35,6 +35,8 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "[-] Couldn't locate all functions!\n");
 		exit(EXIT_FAILURE);
 	}
+	
+	printf("[*] PLT/GOT @ 0x%08lx\n", hijack->pltgot);
 
 	for (func = hijack->funcs; func != NULL; func = func->next)
 	{
