@@ -317,12 +317,12 @@ EXPORTED_SYM int WriteData(HIJACK *hijack, unsigned long addr, unsigned char *bu
  * @param prot Memory mapping prot (man mmap)
  * \ingroup libhijack InjectionPrep
  */
-EXPORTED_SYM unsigned long MapMemory(HIJACK *hijack, unsigned long addr, size_t sz, unsigned long flags, unsigned long prot)
+EXPORTED_SYM unsigned long MapMemory(HIJACK *hijack, unsigned long addr, size_t sz, unsigned long prot, unsigned long flags)
 {
 	if (!IsAttached(hijack))
 		return SetError(hijack, ERROR_NOTATTACHED);
 	
-	return map_memory_absolute(hijack, addr, sz, flags, prot);
+	return map_memory_absolute(hijack, addr, sz, prot, flags);
 }
 
 /**

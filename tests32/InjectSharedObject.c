@@ -72,7 +72,7 @@ int main(int argc, char *argv[])
 	memcpy(regs, backup, sizeof(struct user_regs_struct));
 	
 	LocateSystemCall(hijack);
-	filename_addr = MapMemory(hijack, (unsigned long)NULL, 4096, MAP_ANONYMOUS | MAP_PRIVATE, PROT_READ | PROT_EXEC | PROT_WRITE);
+	filename_addr = MapMemory(hijack, (unsigned long)NULL, 4096,PROT_READ | PROT_EXEC | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE);
 	
 	memcpy(regs, backup, sizeof(struct user_regs_struct));
 	
