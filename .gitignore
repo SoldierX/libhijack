@@ -2,6 +2,6 @@
 *.so*
 src/.depend
 doc/*
-tests/*
-!tests/*.c
-!tests/*.asm
+tests32/*
+!tests32/*.c
+!tests32/*.asm
