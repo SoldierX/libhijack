@@ -100,6 +100,4 @@ int SetRegs(HIJACK *, struct user_regs_struct *);
 
 unsigned long FindFunctionInGot(HIJACK *, unsigned long);
 
-int LoadSharedObjectViaDlopen(HIJACK *, const char *);
-
 #endif
