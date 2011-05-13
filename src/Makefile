@@ -21,6 +21,7 @@ deinstall:
 	rm /usr/lib/libhijack.so
 	rm /usr/lib/${TARGET}
 	rm /usr/include/hijack.h
+	rm /usr/include/hijack_func.h
 
 depends:
 	mkdep ${CFLAGS} ${SRCS}
