@@ -3,8 +3,8 @@ SONAME=libhijack.so.0
 CC=gcc
 ARCH=i686
 CFLAGS=-fPIC -g -Wall -DDEBUG -D${ARCH} -I../include -fvisibility=hidden
-SRCS=libhijack.c error.c misc.c ptrace.c map.c elf.c func.c so.c
-OBJS=libhijack.o error.o misc.o ptrace.o map.o elf.o func.o so.o
+SRCS=libhijack.c error.c misc.c ptrace.c map.c elf.c func.c
+OBJS=libhijack.o error.o misc.o ptrace.o map.o elf.o func.o
 
 ${TARGET}: ${OBJS}
 	${CC} -shared -Wl,-soname,${SONAME} -o ${TARGET} ${OBJS}
@@ -21,6 +21,7 @@ deinstall:
 	rm /usr/lib/libhijack.so
 	rm /usr/lib/${TARGET}
 	rm /usr/include/hijack.h
+	rm /usr/include/hijack_func.h
 
 depends:
 	mkdep ${CFLAGS} ${SRCS}

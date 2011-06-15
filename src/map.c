@@ -29,12 +29,12 @@
 #include "hijack_elf.h"
 #include "map.h"
 
-unsigned long map_memory(HIJACK *hijack, size_t sz, unsigned long flags, unsigned long prot)
+unsigned long map_memory(HIJACK *hijack, size_t sz, unsigned long prot, unsigned long flags)
 {	
-	return map_memory_absolute(hijack, (unsigned long)NULL, sz, flags, prot);
+	return map_memory_absolute(hijack, (unsigned long)NULL, sz, prot, flags);
 }
 
-unsigned long map_memory_absolute(HIJACK *hijack, unsigned long addr, size_t sz, unsigned long flags, unsigned long prot)
+unsigned long map_memory_absolute(HIJACK *hijack, unsigned long addr, size_t sz, unsigned long prot, unsigned long flags)
 {
 	/* XXX mamp_arg_struct is only used in 32bit */
 	struct mmap_arg_struct mmap_args;

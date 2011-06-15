@@ -313,16 +313,16 @@ EXPORTED_SYM int WriteData(HIJACK *hijack, unsigned long addr, unsigned char *bu
  * @param hijack Pointer to the HIJACK instance
  * @param addr Address of the newly created mapping
  * @param sz How many bytes to map (needs to be page-aligned)
- * @param flags Memory mapping flags (man mmap)
  * @param prot Memory mapping prot (man mmap)
+ * @param flags Memory mapping flags (man mmap)
  * \ingroup libhijack InjectionPrep
  */
-EXPORTED_SYM unsigned long MapMemory(HIJACK *hijack, unsigned long addr, size_t sz, unsigned long flags, unsigned long prot)
+EXPORTED_SYM unsigned long MapMemory(HIJACK *hijack, unsigned long addr, size_t sz, unsigned long prot, unsigned long flags)
 {
 	if (!IsAttached(hijack))
 		return SetError(hijack, ERROR_NOTATTACHED);
 	
-	return map_memory_absolute(hijack, addr, sz, flags, prot);
+	return map_memory_absolute(hijack, addr, sz, prot, flags);
 }
 
 /**
@@ -360,7 +360,7 @@ EXPORTED_SYM struct user_regs_struct *GetRegs(HIJACK *hijack)
 	if (!(ret))
 		return NULL;
 	
-	if (ptrace(PTRACE_GETREGS, hijack->pid, NULL, NULL) < 0)
+	if (ptrace(PTRACE_GETREGS, hijack->pid, NULL, ret) < 0)
 	{
 		SetError(hijack, ERROR_SYSCALL);
 		free(ret);
