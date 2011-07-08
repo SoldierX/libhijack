@@ -94,6 +94,60 @@ CBRESULT func_found(HIJACK *hijack, struct link_map *linkmap, char *name, unsign
 	return CONTPROC;
 }
 
+EXPORTED_SYM PLT *GetAllPLTs(HIJACK *hijack)
+{
+	struct link_map *linkmap;
+	char *libname;
+	PLT *plt=NULL, *ret=NULL;
+	ElfW(Dyn) *dyn=NULL;
+	unsigned long addr;
+
+	if (!(IsAttached(hijack))) {
+		SetError(hijack, ERROR_NOTATTACHED);
+		return NULL;
+	}
+
+	linkmap = hijack->linkhead;
+	do {
+		if (!(linkmap))
+			break;
+
+		libname = read_str(hijack, (unsigned long)linkmap->l_name);
+
+		if (IsFlagSet(hijack, F_DEBUG_VERBOSE))
+			fprintf(stderr, "[*] Loading from %s\n", libname);
+
+		addr = (unsigned long)linkmap->l_ld;
+		do {
+			dyn = read_data(hijack, addr, sizeof(ElfW(Dyn)));
+			if (!(dyn))
+				break;
+
+			if (dyn->d_tag == DT_PLTGOT)
+				break;
+
+			addr += sizeof(ElfW(Dyn));
+		} while (dyn->d_tag != DT_NULL);
+
+		if (!(dyn) || dyn->d_tag == DT_NULL)
+			continue;
+
+		if (!(plt)) {
+			plt = ret = malloc(sizeof(PLT));
+		} else {
+			plt->next = malloc(sizeof(PLT));
+			plt = plt->next;
+		}
+
+		memset(plt, 0x00, sizeof(PLT));
+
+		plt->libname = libname;
+		plt->p.ptr = (unsigned long)dyn->d_un.d_ptr + sizeof(unsigned long)*3;
+	} while ((linkmap = get_next_linkmap(hijack, (unsigned long)(linkmap->l_next))) != NULL);
+
+	return ret;
+}
+
 /**
  * Find all functions with a given name in a process
  * @param hijack Pointer to the HIJACK instance

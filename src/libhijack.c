@@ -260,6 +260,17 @@ EXPORTED_SYM int LocateSystemCall(HIJACK *hijack)
 }
 
 /**
+  * Locate PLT/GOT of a dynamically-loaded shared object
+  * @param hijack Pointer to HIJACK instance
+  * @param name Name of library
+  * \ingroup libhijack
+  */
+EXPORTED_SYM PLT *LocatePLTInLib(HIJACK *hijack, char *name)
+{
+	return NULL;
+}
+
+/**
  * Read data from the process
  * @param hijack Pointer to the HIJACK instance
  * @param addr Address from where to read
