@@ -280,7 +280,7 @@ int init_hijack_system(HIJACK *hijack)
 	return SetError(hijack, ERROR_NONE);
 }
 
-unsigned long find_func_addr_in_got(HIJACK *hijack, unsigned long addr)
+unsigned long find_func_addr_in_got(HIJACK *hijack, unsigned long pltaddr, unsigned long addr)
 {
 	unsigned long got_data;
 	unsigned int i;
@@ -292,7 +292,7 @@ unsigned long find_func_addr_in_got(HIJACK *hijack, unsigned long addr)
 	}
 	
 	/* XXX Assume that read_data won't error out, possible NULL pointer dereference */
-	got_data = *(unsigned long *)read_data(hijack, hijack->pltgot, sizeof(unsigned long));
+	got_data = *(unsigned long *)read_data(hijack, pltaddr, sizeof(unsigned long));
 	i = 1;
 	while (got_data > 0)
 	{
@@ -300,7 +300,7 @@ unsigned long find_func_addr_in_got(HIJACK *hijack, unsigned long addr)
 			break;
 		if (IsFlagSet(hijack, F_DEBUG_VERBOSE))
 			fprintf(stderr, "[*] got[%u]: 0x%08lx\n", i, got_data);
-		got_data = *(unsigned long *)read_data(hijack, hijack->pltgot + ((++i) * sizeof(unsigned long)), sizeof(unsigned long));
+		got_data = *(unsigned long *)read_data(hijack, pltaddr + ((++i) * sizeof(unsigned long)), sizeof(unsigned long));
 	}
 	
 	if (!got_data)
@@ -309,5 +309,5 @@ unsigned long find_func_addr_in_got(HIJACK *hijack, unsigned long addr)
 		return 0;
 	}
 	
-	return hijack->pltgot + (i * sizeof(unsigned long));
+	return pltaddr + (i * sizeof(unsigned long));
 }

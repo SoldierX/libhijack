@@ -17,6 +17,7 @@ int main(int argc, char *argv[])
 	HIJACK *hijack;
 	FUNC *func;
 	unsigned long addr;
+	PLT *plts, *plt;
 	
 	if (argc != 2)
 		usage(argv[0]);
@@ -38,18 +39,24 @@ int main(int argc, char *argv[])
 	
 	printf("[*] PLT/GOT @ 0x%08lx\n", hijack->pltgot);
 
-	for (func = hijack->funcs; func != NULL; func = func->next)
+	plts = GetAllPLTs(hijack);
+	for (plt = plts; plt != NULL; plt = plt->next)
 	{
-		if (!(func->name))
-			continue;
-		
-		addr = FindFunctionInGot(hijack, func->vaddr);
-		
-		printf("[+] %s\t%s @ 0x%08lx (%u)", func->libname, func->name, func->vaddr, func->sz);
-		if (addr > 0)
-			printf(" -> 0x%08lx", addr);
-		
-		printf("\n");
+		printf("[+] Looking in %s\n", plt->libname);
+
+		for (func = hijack->funcs; func != NULL; func = func->next)
+		{
+			if (!(func->name))
+				continue;
+			
+			addr = FindFunctionInGot(hijack, plt->p.ptr, func->vaddr);
+			
+			printf("[+]    %s\t%s @ 0x%08lx (%u)", func->libname, func->name, func->vaddr, func->sz);
+			if (addr > 0)
+				printf("        -> 0x%08lx", addr);
+			
+			printf("\n");
+		}
 	}
 	
 	Detach(hijack);

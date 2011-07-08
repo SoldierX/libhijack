@@ -110,6 +110,6 @@ int InjectShellcode(HIJACK *, unsigned long, void *, size_t);
 struct user_regs_struct *GetRegs(HIJACK *);
 int SetRegs(HIJACK *, struct user_regs_struct *);
 
-unsigned long FindFunctionInGot(HIJACK *, unsigned long);
+unsigned long FindFunctionInGot(HIJACK *, unsigned long, unsigned long);
 
 #endif

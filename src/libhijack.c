@@ -393,7 +393,7 @@ EXPORTED_SYM int SetRegs(HIJACK *hijack, struct user_regs_struct *regs)
  * @param addr Address of the function being looked up
  * \ingroup libhijack
  */
-EXPORTED_SYM unsigned long FindFunctionInGot(HIJACK *hijack, unsigned long addr)
+EXPORTED_SYM unsigned long FindFunctionInGot(HIJACK *hijack, unsigned long pltaddr, unsigned long addr)
 {
-	return find_func_addr_in_got(hijack, addr);
+	return find_func_addr_in_got(hijack, pltaddr, addr);
 }

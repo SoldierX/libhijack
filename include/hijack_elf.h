@@ -44,5 +44,5 @@ CBRESULT syscall_callback(HIJACK *, struct link_map *, char *, unsigned long, si
 
 int init_hijack_system(HIJACK *);
 
-unsigned long find_func_addr_in_got(HIJACK *, unsigned long);
+unsigned long find_func_addr_in_got(HIJACK *, unsigned long, unsigned long);
 #endif
