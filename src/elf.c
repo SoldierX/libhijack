@@ -55,26 +55,11 @@ unsigned long find_pltgot(HIJACK *hijack)
 	
 	SetError(hijack, ERROR_NONE);
 	
-	if (IsFlagSet(hijack, F_DEBUG_VERBOSE))
+	if (IsFlagSet(hijack, F_DEBUG))
 		fprintf(stderr, "[*] Attempting to find PLT/GOT\n");
 	
 	for (i=0; i<hijack->ehdr.ehdr->e_phnum; i++)
 	{
-		if (IsFlagSet(hijack, F_DEBUG_VERBOSE))
-		{
-			#if defined(i686)
-				fprintf(stderr, "[*] Parsing phdr[%u]:\n", i);
-				fprintf(stderr, "    [*] p_vaddr:\t0x%08x\n", hijack->phdr.phdr[i].p_vaddr);
-				fprintf(stderr, "    [*] p_memsz:\t0x%08x\n", hijack->phdr.phdr[i].p_memsz);
-				fprintf(stderr, "    [*] p_type:\t%d\n", hijack->phdr.phdr[i].p_type);
-			#elif defined(x86_64)
-				fprintf(stderr, "[*] Parsing phdr[%u]:\n", i);
-				fprintf(stderr, "    [*] p_vaddr:\t0x%016lx\n", hijack->phdr.phdr[i].p_vaddr);
-				fprintf(stderr, "    [*] p_memsz:\t0x%016lx\n", hijack->phdr.phdr[i].p_memsz);
-				fprintf(stderr, "    [*] p_type:\t%d\n", hijack->phdr.phdr[i].p_type);
-			#endif
-		}
-		
 		if (hijack->phdr.phdr[i].p_type == PT_DYNAMIC)
 		{
 			dyn = (ElfW(Dyn) *)read_data(hijack, (unsigned long)(hijack->phdr.phdr[i].p_vaddr), hijack->phdr.phdr[i].p_memsz);
@@ -91,43 +76,9 @@ unsigned long find_pltgot(HIJACK *hijack)
 		return (unsigned long)NULL;
 	}
 	
-	if(IsFlagSet(hijack, F_DEBUG_VERBOSE))
-	{
-		#if defined(i686)
-			fprintf(stderr, "[+] PT_DYNAMIC found @ 0x%08x!\n", hijack->phdr.phdr[i].p_vaddr);
-		#elif defined(x86_64)
-			fprintf(stderr, "[+] PT_DYNAMIC found @ 0x%016lx!\n", hijack->phdr.phdr[i].p_vaddr);
-		#endif
-	}
-	
 	for (i=0; dyn[i].d_tag != DT_NULL; i++)
-	{
-		if (IsFlagSet(hijack, F_DEBUG_VERBOSE))
-		{
-			fprintf(stderr, "[*] Parsing dyn[%u]\n", i);
-			#if defined(i686)
-				fprintf(stderr, "    [*] d_tag:\t%d\n", dyn[i].d_tag);
-				fprintf(stderr, "    [*] d_ptr:\t0x%08x\n", dyn[i].d_un.d_ptr);
-			#elif defined(x86_64)
-				fprintf(stderr, "    [*] d_tag:\t%ld\n", dyn[i].d_tag);
-				fprintf(stderr, "    [*] d_ptr:\t0x%016lx\n", dyn[i].d_un.d_ptr);
-			#endif
-		}
-		
 		if (dyn[i].d_tag == DT_PLTGOT)
-		{
-			if (IsFlagSet(hijack, F_DEBUG_VERBOSE))
-			{
-				#if defined(i686)
-					fprintf(stderr, "[+] PLT/GOT found @ 0x%08x!\n", dyn[i].d_un.d_ptr);
-				#elif defined(x86_64)
-					fprintf(stderr, "[+] PLT/GOT found @ 0x%016lx!\n", dyn[i].d_un.d_ptr);
-				#endif
-			}
-			
 			return (unsigned long)(dyn[i].d_un.d_ptr);
-		}
-	}
 
 	if (IsFlagSet(hijack, F_DEBUG))
 		fprintf(stderr, "[*] Could not locate PLT/GOT\n");
@@ -158,7 +109,6 @@ struct link_map *get_next_linkmap(HIJACK *hijack, unsigned long addr)
 	return (struct link_map *)read_data(hijack, addr, sizeof(struct link_map));
 }
 
-/* XXX This function _really_ needs to be cleaned up prior to 0.2 release */
 void parse_linkmap(HIJACK *hijack, struct link_map *linkmap, linkmap_callback callback)
 {
 	int err;

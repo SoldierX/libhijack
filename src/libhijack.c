@@ -85,7 +85,7 @@ EXPORTED_SYM HIJACK *InitHijack(void)
 	
 	memset(hijack, 0x00, sizeof(HIJACK));
 	
-	hijack->version = "0.2";
+	hijack->version = "0.4";
 	
 	SetValue(hijack, V_BASEADDR, &baseaddr);
 	
@@ -257,17 +257,6 @@ EXPORTED_SYM int LocateSystemCall(HIJACK *hijack)
 	} while ((map = get_next_linkmap(hijack, (unsigned long)(map->l_next))) != NULL);
 	
 	return SetError(hijack, ERROR_NONE);
-}
-
-/**
-  * Locate PLT/GOT of a dynamically-loaded shared object
-  * @param hijack Pointer to HIJACK instance
-  * @param name Name of library
-  * \ingroup libhijack
-  */
-EXPORTED_SYM PLT *LocatePLTInLib(HIJACK *hijack, char *name)
-{
-	return NULL;
 }
 
 /**
