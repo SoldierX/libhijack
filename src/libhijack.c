@@ -85,7 +85,7 @@ EXPORTED_SYM HIJACK *InitHijack(void)
 	
 	memset(hijack, 0x00, sizeof(HIJACK));
 	
-	hijack->version = "0.4";
+	hijack->version = "0.5";
 	
 	SetValue(hijack, V_BASEADDR, &baseaddr);
 	
