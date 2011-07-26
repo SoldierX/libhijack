@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
 		if (!(func->name))
 			continue;
 		
-		pltgot_addr = FindFunctionInGot(hijack, func->vaddr);
+		pltgot_addr = FindFunctionInGot(hijack, hijack->pltgot, func->vaddr);
 		if (pltgot_addr > 0)
 			break;
 	}
