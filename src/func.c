@@ -41,19 +41,20 @@ void print_funcs(FUNC *);
  */
 EXPORTED_SYM int LocateAllFunctions(HIJACK *hijack)
 {
-	struct link_map *linkmap;
+	struct link_map *linkmap=NULL;
 	
 	if (!IsAttached(hijack))
 		return SetError(hijack, ERROR_NOTATTACHED);
 	
 	linkmap = hijack->linkhead;
-	do
-	{
+	do {
 		if (!(linkmap))
 			break;
 		if (IsFlagSet(hijack, F_DEBUG_VERBOSE))
 			fprintf(stderr, "[*] Loading from %s\n", read_str(hijack, (unsigned long)linkmap->l_name));
 		parse_linkmap(hijack, linkmap, func_found);
+
+		free(linkmap);
 	} while ((linkmap = get_next_linkmap(hijack, (unsigned long)(linkmap->l_next))) != NULL);
 	
 	return SetError(hijack, ERROR_NONE);
@@ -66,8 +67,7 @@ CBRESULT func_found(HIJACK *hijack, struct link_map *linkmap, char *name, unsign
 	if (!(linkmap))
 		return CONTPROC;
 	
-	if (hijack->funcs)
-	{
+	if (hijack->funcs) {
 		f = hijack->funcs;
 		while (f->next != NULL)
 			f = f->next;
@@ -118,7 +118,11 @@ EXPORTED_SYM PLT *GetAllPLTs(HIJACK *hijack)
 			fprintf(stderr, "[*] Loading from %s\n", libname);
 
 		addr = (unsigned long)linkmap->l_ld;
+		dyn = NULL;
 		do {
+			if ((dyn))
+				free(dyn);
+
 			dyn = read_data(hijack, addr, sizeof(ElfW(Dyn)));
 			if (!(dyn))
 				break;
@@ -143,6 +147,9 @@ EXPORTED_SYM PLT *GetAllPLTs(HIJACK *hijack)
 
 		plt->libname = libname;
 		plt->p.ptr = (unsigned long)dyn->d_un.d_ptr + sizeof(unsigned long)*3;
+
+		free(linkmap);
+		free(dyn);
 	} while ((linkmap = get_next_linkmap(hijack, (unsigned long)(linkmap->l_next))) != NULL);
 
 	return ret;

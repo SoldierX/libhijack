@@ -246,8 +246,7 @@ CBRESULT syscall_callback(HIJACK *hijack, struct link_map *linkmap, char *name, 
 	unsigned long syscalladdr;
 	
 	syscalladdr = search_mem(hijack, vaddr, sz, SYSCALLSEARCH, strlen(SYSCALLSEARCH));
-	if (syscalladdr)
-	{
+	if (syscalladdr) {
 		hijack->syscalladdr = syscalladdr;
 		return TERMPROC;
 	}
@@ -298,8 +297,7 @@ unsigned long find_func_addr_in_got(HIJACK *hijack, unsigned long pltaddr, unsig
 	unsigned long got_data;
 	unsigned int i;
 	
-	if (!IsAttached(hijack))
-	{
+	if (!IsAttached(hijack)) {
 		SetError(hijack, ERROR_NOTATTACHED);
 		return 0;
 	}
@@ -308,8 +306,7 @@ unsigned long find_func_addr_in_got(HIJACK *hijack, unsigned long pltaddr, unsig
 	p = read_data(hijack, pltaddr, sizeof(unsigned long));
 	got_data = *((unsigned long *)p);
 	i = 1;
-	while (got_data > 0)
-	{
+	while (got_data > 0) {
 		free(p);
 
 		if (got_data == addr)
