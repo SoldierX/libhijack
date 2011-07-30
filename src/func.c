@@ -94,6 +94,11 @@ CBRESULT func_found(HIJACK *hijack, struct link_map *linkmap, char *name, unsign
 	return CONTPROC;
 }
 
+/**
+ * Get location of the PLT in each dynamically-loaded shared object.
+ * @param hijack Pointer to the HIJACk instance
+ * \ingroup libhijack InjectionPrep
+ */
 EXPORTED_SYM PLT *GetAllPLTs(HIJACK *hijack)
 {
 	struct link_map *linkmap;

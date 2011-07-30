@@ -390,6 +390,7 @@ EXPORTED_SYM int SetRegs(HIJACK *hijack, struct user_regs_struct *regs)
 /**
  * Find the location of a function address in the GOT
  * @param hijack Pointer to the HIJACK instance
+ * @param pltaddr The location of the PLT/GOT in which to scan for the addr
  * @param addr Address of the function being looked up
  * \ingroup libhijack
  */
