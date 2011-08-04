@@ -1,6 +1,7 @@
 *.o
 *.so*
 src/.depend
+src/tags
 doc/*
 linux_tests32/*
 !linux_tests32/*.c

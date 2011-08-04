@@ -55,26 +55,11 @@ unsigned long find_pltgot(HIJACK *hijack)
 	
 	SetError(hijack, ERROR_NONE);
 	
-	if (IsFlagSet(hijack, F_DEBUG_VERBOSE))
+	if (IsFlagSet(hijack, F_DEBUG))
 		fprintf(stderr, "[*] Attempting to find PLT/GOT\n");
 	
 	for (i=0; i<hijack->ehdr.ehdr->e_phnum; i++)
 	{
-		if (IsFlagSet(hijack, F_DEBUG_VERBOSE))
-		{
-			#if defined(i686)
-				fprintf(stderr, "[*] Parsing phdr[%u]:\n", i);
-				fprintf(stderr, "    [*] p_vaddr:\t0x%08x\n", hijack->phdr.phdr[i].p_vaddr);
-				fprintf(stderr, "    [*] p_memsz:\t0x%08x\n", hijack->phdr.phdr[i].p_memsz);
-				fprintf(stderr, "    [*] p_type:\t%d\n", hijack->phdr.phdr[i].p_type);
-			#elif defined(x86_64)
-				fprintf(stderr, "[*] Parsing phdr[%u]:\n", i);
-				fprintf(stderr, "    [*] p_vaddr:\t0x%016lx\n", hijack->phdr.phdr[i].p_vaddr);
-				fprintf(stderr, "    [*] p_memsz:\t0x%016lx\n", hijack->phdr.phdr[i].p_memsz);
-				fprintf(stderr, "    [*] p_type:\t%d\n", hijack->phdr.phdr[i].p_type);
-			#endif
-		}
-		
 		if (hijack->phdr.phdr[i].p_type == PT_DYNAMIC)
 		{
 			dyn = (ElfW(Dyn) *)read_data(hijack, (unsigned long)(hijack->phdr.phdr[i].p_vaddr), hijack->phdr.phdr[i].p_memsz);
@@ -91,43 +76,14 @@ unsigned long find_pltgot(HIJACK *hijack)
 		return (unsigned long)NULL;
 	}
 	
-	if(IsFlagSet(hijack, F_DEBUG_VERBOSE))
-	{
-		#if defined(i686)
-			fprintf(stderr, "[+] PT_DYNAMIC found @ 0x%08x!\n", hijack->phdr.phdr[i].p_vaddr);
-		#elif defined(x86_64)
-			fprintf(stderr, "[+] PT_DYNAMIC found @ 0x%016lx!\n", hijack->phdr.phdr[i].p_vaddr);
-		#endif
-	}
-	
-	for (i=0; dyn[i].d_tag != DT_NULL; i++)
-	{
-		if (IsFlagSet(hijack, F_DEBUG_VERBOSE))
-		{
-			fprintf(stderr, "[*] Parsing dyn[%u]\n", i);
-			#if defined(i686)
-				fprintf(stderr, "    [*] d_tag:\t%d\n", dyn[i].d_tag);
-				fprintf(stderr, "    [*] d_ptr:\t0x%08x\n", dyn[i].d_un.d_ptr);
-			#elif defined(x86_64)
-				fprintf(stderr, "    [*] d_tag:\t%ld\n", dyn[i].d_tag);
-				fprintf(stderr, "    [*] d_ptr:\t0x%016lx\n", dyn[i].d_un.d_ptr);
-			#endif
-		}
-		
-		if (dyn[i].d_tag == DT_PLTGOT)
-		{
-			if (IsFlagSet(hijack, F_DEBUG_VERBOSE))
-			{
-				#if defined(i686)
-					fprintf(stderr, "[+] PLT/GOT found @ 0x%08x!\n", dyn[i].d_un.d_ptr);
-				#elif defined(x86_64)
-					fprintf(stderr, "[+] PLT/GOT found @ 0x%016lx!\n", dyn[i].d_un.d_ptr);
-				#endif
-			}
-			
+	for (i=0; dyn[i].d_tag != DT_NULL; i++) {
+		if (dyn[i].d_tag == DT_PLTGOT) {
+			free(dyn);
 			return (unsigned long)(dyn[i].d_un.d_ptr);
 		}
 	}
+
+	free(dyn);
 
 	if (IsFlagSet(hijack, F_DEBUG))
 		fprintf(stderr, "[*] Could not locate PLT/GOT\n");
@@ -158,7 +114,6 @@ struct link_map *get_next_linkmap(HIJACK *hijack, unsigned long addr)
 	return (struct link_map *)read_data(hijack, addr, sizeof(struct link_map));
 }
 
-/* XXX This function _really_ needs to be cleaned up prior to 0.2 release */
 void parse_linkmap(HIJACK *hijack, struct link_map *linkmap, linkmap_callback callback)
 {
 	int err;
@@ -175,15 +130,16 @@ void parse_linkmap(HIJACK *hijack, struct link_map *linkmap, linkmap_callback ca
 		return;
 	
 	libname = read_str(hijack, (unsigned long)(linkmap->l_name));
-	if (!(libname) || !strlen(libname))
-	{
+	if (!(libname) || !strlen(libname)) {
+		if ((libname))
+			free(libname);
+
 		err = ERROR_NEEDED;
 		goto notfound;
 	}
 	
 	dynaddr = (unsigned long)(linkmap->l_ld);
-	do
-	{
+	do {
 		if (libdyn)
 			free(libdyn);
 
@@ -204,8 +160,10 @@ void parse_linkmap(HIJACK *hijack, struct link_map *linkmap, linkmap_callback ca
 		dynaddr += sizeof(ElfW(Dyn));
 	} while (libdyn->d_tag != DT_NULL);
 	
-	if (symaddr == 0 || libstrtab == NULL || hashtable == 0)
-	{
+	if ((libdyn))
+		free(libdyn);
+
+	if (symaddr == 0 || libstrtab == NULL || hashtable == 0) {
 		err = SetError(hijack, ERROR_NEEDED);
 		goto notfound;
 	}
@@ -219,27 +177,25 @@ void parse_linkmap(HIJACK *hijack, struct link_map *linkmap, linkmap_callback ca
 	symaddr += sizeof(ElfW(Sym));
 	
 	#if defined(i686)
-		do
-		{
+		do {
+			if ((libsym))
+				free(libsym);
+
 			libsym = (ElfW(Sym) *)read_data(hijack, (unsigned long)symaddr, sizeof(ElfW(Sym)));
-			if (!(libsym))
-			{
+			if (!(libsym)) {
 				err = GetErrorCode(hijack);
 				goto notfound;
 			}
 			
-			if (ELF32_ST_TYPE(libsym->st_info) != STT_FUNC)
-			{
+			if (ELF32_ST_TYPE(libsym->st_info) != STT_FUNC) {
 				symaddr += sizeof(ElfW(Sym));
 				continue;
 			}
 			
 			name = read_str(hijack, (unsigned long)(libstrtab + libsym->st_name));
-			if (name)
-			{
+			if ((name)) {
 				/* XXX name should be cleaned up. Callback should duplicate (strdup) the name if needed... */
-				if (callback(hijack, linkmap, name, ((unsigned long)(linkmap->l_addr) + libsym->st_value), (size_t)(libsym->st_size)) != CONTPROC)
-				{
+				if (callback(hijack, linkmap, name, ((unsigned long)(linkmap->l_addr) + libsym->st_value), (size_t)(libsym->st_size)) != CONTPROC) {
 					free(name);
 					break;
 				}
@@ -250,8 +206,10 @@ void parse_linkmap(HIJACK *hijack, struct link_map *linkmap, linkmap_callback ca
 			symaddr += sizeof(ElfW(Sym));
 		} while (i++ < numsyms);
 	#elif defined(x86_64)
-		do
-		{
+		do {
+			if ((libsym))
+				free(libsym);
+
 			libsym = (ElfW(Sym) *)read_data(hijack, (unsigned long)symaddr, sizeof(ElfW(Sym)));
 			if (!(libsym))
 			{
@@ -266,10 +224,13 @@ void parse_linkmap(HIJACK *hijack, struct link_map *linkmap, linkmap_callback ca
 			}
 			
 			name = read_str(hijack, (unsigned long)(libstrtab + libsym->st_name));
-			if (name)
-			{
-				if (callback(hijack, linkmap, name, ((unsigned long)(linkmap->l_addr) + libsym->st_value), (size_t)(libsym->st_size)) != CONTPROC)
+			if ((name)) {
+				if (callback(hijack, linkmap, name, ((unsigned long)(linkmap->l_addr) + libsym->st_value), (size_t)(libsym->st_size)) != CONTPROC) {
+					free(name);
 					break;
+				}
+
+				free(name);
 			}
 			
 			symaddr += sizeof(ElfW(Sym));
@@ -304,11 +265,12 @@ unsigned long search_mem(HIJACK *hijack, unsigned long funcaddr, size_t funcsz, 
 		return (unsigned long)NULL;
 	
 	ret = (unsigned long)memmem(funcdata, funcsz, data, datasz);
+	
+	if ((funcdata))
+		free(funcdata);
+	
 	if (ret)
 		return (unsigned long)(funcaddr + (ret - (unsigned long)funcdata));
-	
-	if (funcdata)
-		free(funcdata);
 	
 	return (unsigned long)NULL;
 }
@@ -330,8 +292,9 @@ int init_hijack_system(HIJACK *hijack)
 	return SetError(hijack, ERROR_NONE);
 }
 
-unsigned long find_func_addr_in_got(HIJACK *hijack, unsigned long addr)
+unsigned long find_func_addr_in_got(HIJACK *hijack, unsigned long pltaddr, unsigned long addr)
 {
+	void *p;
 	unsigned long got_data;
 	unsigned int i;
 	
@@ -342,15 +305,19 @@ unsigned long find_func_addr_in_got(HIJACK *hijack, unsigned long addr)
 	}
 	
 	/* XXX Assume that read_data won't error out, possible NULL pointer dereference */
-	got_data = *(unsigned long *)read_data(hijack, hijack->pltgot, sizeof(unsigned long));
+	p = read_data(hijack, pltaddr, sizeof(unsigned long));
+	got_data = *((unsigned long *)p);
 	i = 1;
 	while (got_data > 0)
 	{
+		free(p);
+
 		if (got_data == addr)
 			break;
 		if (IsFlagSet(hijack, F_DEBUG_VERBOSE))
 			fprintf(stderr, "[*] got[%u]: 0x%08lx\n", i, got_data);
-		got_data = *(unsigned long *)read_data(hijack, hijack->pltgot + ((++i) * sizeof(unsigned long)), sizeof(unsigned long));
+		p = read_data(hijack, pltaddr + ((++i) * sizeof(unsigned long)), sizeof(unsigned long));
+		got_data = *((unsigned long *)p);
 	}
 	
 	if (!got_data)
@@ -359,5 +326,5 @@ unsigned long find_func_addr_in_got(HIJACK *hijack, unsigned long addr)
 		return 0;
 	}
 	
-	return hijack->pltgot + (i * sizeof(unsigned long));
+	return pltaddr + (i * sizeof(unsigned long));
 }

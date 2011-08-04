@@ -85,7 +85,7 @@ EXPORTED_SYM HIJACK *InitHijack(void)
 	
 	memset(hijack, 0x00, sizeof(HIJACK));
 	
-	hijack->version = "0.2";
+	hijack->version = "0.5";
 	
 	SetValue(hijack, V_BASEADDR, &baseaddr);
 	
@@ -390,10 +390,11 @@ EXPORTED_SYM int SetRegs(HIJACK *hijack, struct user_regs_struct *regs)
 /**
  * Find the location of a function address in the GOT
  * @param hijack Pointer to the HIJACK instance
+ * @param pltaddr The location of the PLT/GOT in which to scan for the addr
  * @param addr Address of the function being looked up
  * \ingroup libhijack
  */
-EXPORTED_SYM unsigned long FindFunctionInGot(HIJACK *hijack, unsigned long addr)
+EXPORTED_SYM unsigned long FindFunctionInGot(HIJACK *hijack, unsigned long pltaddr, unsigned long addr)
 {
-	return find_func_addr_in_got(hijack, addr);
+	return find_func_addr_in_got(hijack, pltaddr, addr);
 }

@@ -2,4 +2,4 @@ LibHijack - Runtime Process Infection Made Easy
 ===============================================
 
 Libhijack is a shared object to make injecting arbitrary code (shellcode)
-and other shared objects into another process during runtime.
+and other shared objects into another process during runtime easy.

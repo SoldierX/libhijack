@@ -1,4 +1,4 @@
-TARGET=libhijack.so.0.4
+TARGET=libhijack.so.0.5
 SONAME=libhijack.so.0
 CC=gcc
 ARCH=i686

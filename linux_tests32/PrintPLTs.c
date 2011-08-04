@@ -31,32 +31,12 @@ int main(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 	
-	if (LocateAllFunctions(hijack) != ERROR_NONE)
-	{
-		fprintf(stderr, "[-] Couldn't locate all functions!\n");
-		exit(EXIT_FAILURE);
-	}
 	
 	printf("[*] PLT/GOT @ 0x%08lx\n", hijack->pltgot);
 
 	plts = GetAllPLTs(hijack);
-	for (plt = plts; plt != NULL; plt = plt->next)
-	{
-		printf("[+] Looking in %s\n", plt->libname);
-
-		for (func = hijack->funcs; func != NULL; func = func->next)
-		{
-			if (!(func->name))
-				continue;
-			
-			addr = FindFunctionInGot(hijack, plt->p.ptr, func->vaddr);
-			
-			printf("[+]    %s\t%s @ 0x%08lx (%u)", func->libname, func->name, func->vaddr, func->sz);
-			if (addr > 0)
-				printf("        -> 0x%08lx", addr);
-			
-			printf("\n");
-		}
+	for (plt = plts; plt != NULL; plt = plt->next) {
+		printf("[+] PLT for %s @\t0x%08lx\n", plt->libname, plt->p.ptr);
 	}
 	
 	Detach(hijack);

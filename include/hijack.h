@@ -40,6 +40,18 @@ typedef enum _bool {false=0, true=1} bool;
 
 struct _func;
 
+typedef struct _plt {
+	char *libname;
+
+	union {
+		void *raw;
+		unsigned char *buf;
+		unsigned long ptr;
+	} p;
+
+	struct _plt *next;
+} PLT;
+
 typedef struct _hijack {
 	char *version;
 	int pid;
@@ -98,6 +110,6 @@ int InjectShellcode(HIJACK *, unsigned long, void *, size_t);
 struct user_regs_struct *GetRegs(HIJACK *);
 int SetRegs(HIJACK *, struct user_regs_struct *);
 
-unsigned long FindFunctionInGot(HIJACK *, unsigned long);
+unsigned long FindFunctionInGot(HIJACK *, unsigned long, unsigned long);
 
 #endif
