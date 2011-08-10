@@ -51,6 +51,7 @@ int init_elf_headers(HIJACK *hijack)
 unsigned long find_pltgot(HIJACK *hijack)
 {
 	unsigned int i;
+	unsigned long ret;
 	ElfW(Dyn) *dyn=NULL;
 	
 	SetError(hijack, ERROR_NONE);
@@ -78,8 +79,9 @@ unsigned long find_pltgot(HIJACK *hijack)
 	
 	for (i=0; dyn[i].d_tag != DT_NULL; i++) {
 		if (dyn[i].d_tag == DT_PLTGOT) {
+			ret = (unsigned long)(dyn[i].d_un.d_ptr);
 			free(dyn);
-			return (unsigned long)(dyn[i].d_un.d_ptr);
+			return ret;
 		}
 	}
 
