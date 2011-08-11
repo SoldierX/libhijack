@@ -40,11 +40,7 @@ int init_elf_headers(HIJACK *hijack)
 	hijack->phdr.raw = read_data(hijack, ((unsigned long)(hijack->baseaddr) + hijack->ehdr.ehdr->e_phoff), hijack->ehdr.ehdr->e_phentsize * hijack->ehdr.ehdr->e_phnum);
 	if (!(hijack->phdr.raw))
 		return -1;
-#if 0	
-	hijack->shdr.raw = read_data(hijack, ((unsigned long)(hijack->baseaddr) + hijack->ehdr.ehdr->e_shoff), hijack->ehdr.ehdr->e_shentsize * hijack->ehdr.ehdr->e_shnum);
-	if (!(hijack->shdr.raw))
-		return -1;
-#endif	
+
 	return 0;
 }
 
