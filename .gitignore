@@ -6,3 +6,6 @@ doc/*
 linux_tests32/*
 !linux_tests32/*.c
 !linux_tests32/*.asm
+linux_tests64/*
+!linux_tests64/*.c
+!linux_tests64/*.asm
