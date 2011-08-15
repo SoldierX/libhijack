@@ -73,12 +73,6 @@ typedef struct _hijack {
 		ElfW(Phdr) *phdr;
 	} phdr;
 	
-	union {
-		void *raw;
-		unsigned char *buf;
-		ElfW(Shdr) *shdr;
-	} shdr;
-	
 	struct user_regs_struct *backup_regs;
 	
 	unsigned long pltgot;
