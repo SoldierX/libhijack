@@ -51,19 +51,19 @@ unsigned long map_memory_absolute(HIJACK *hijack, unsigned long addr, size_t sz,
 
 unsigned long map_memory_args(HIJACK *hijack, size_t sz, struct mmap_arg_struct *mmap_args)
 {
-	struct user_regs_struct regs_backup, *regs;
+	REGS regs_backup, *regs;
 	int i;
 	int err = ERROR_NONE;
 	unsigned long ret = (unsigned long)NULL;
 	unsigned long addr;
 	
-	regs = malloc(sizeof(struct user_regs_struct));
+	regs = malloc(sizeof(REGS));
 	
 	if (ptrace(PTRACE_GETREGS, hijack->pid, NULL, &regs_backup) < 0) {
 		err = ERROR_SYSCALL;
 		goto end;
 	}
-	memcpy(regs, &regs_backup, sizeof(struct user_regs_struct));
+	memcpy(regs, &regs_backup, sizeof(REGS));
 	
 	#if defined(i686)
 		regs->eip = (long)(hijack->syscalladdr);
@@ -153,7 +153,7 @@ end:
 
 int inject_shellcode(HIJACK *hijack, unsigned long addr, void *data, size_t sz)
 {
-	struct user_regs_struct origregs;
+	REGS origregs;
 	
 	write_data(hijack, addr, data, sz);
 	

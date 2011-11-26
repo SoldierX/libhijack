@@ -17,6 +17,30 @@
 #include <elf.h>
 #include <link.h>
 
+/* PTrace abstraction */
+#if defined(FreeBSD)
+    #include <machine/reg.h>
+
+    #if defined(amd64)
+        #define ElfW(type) Elf64_##type
+    #endif
+
+    #define PTRACE_ATTACH   PT_ATTACH
+    #define PTRACE_DETACH   PT_DETACH
+    #define PTRACE_GETREGS  PT_GETREGS
+    #define PTRACE_SETREGS  PT_SETREGS
+    #define PTRACE_CONTINUE PT_CONTINUE
+    #define PTRACE_PEEKTEXT PT_READ_D
+    #define PTRACE_POKETEXT PT_WRITE_D
+    #define PTRACE_SINGLESTEP   PT_STEP
+
+    #define REGS    struct reg
+#elif defined(Linux)
+    #define REGS    struct user_regs_struct
+#else
+    #error "Unsupported OS"
+#endif
+
 #define EXPORTED_SYM __attribute__((visibility("default")))
 
 #define ERROR_NONE				0
@@ -101,8 +125,8 @@ int ReadData(HIJACK *, unsigned long, unsigned char *, size_t);
 int WriteData(HIJACK *, unsigned long , unsigned char *, size_t);
 unsigned long MapMemory(HIJACK *, unsigned long, size_t, unsigned long, unsigned long);
 int InjectShellcode(HIJACK *, unsigned long, void *, size_t);
-struct user_regs_struct *GetRegs(HIJACK *);
-int SetRegs(HIJACK *, struct user_regs_struct *);
+REGS *GetRegs(HIJACK *);
+int SetRegs(HIJACK *, REGS *);
 
 unsigned long FindFunctionInGot(HIJACK *, unsigned long, unsigned long);
 

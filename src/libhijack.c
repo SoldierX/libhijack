@@ -346,9 +346,9 @@ EXPORTED_SYM int InjectShellcode(HIJACK *hijack, unsigned long addr, void *data,
  * @param hijack Pointer to the HIJACK instance
  * \ingroup libhijack
  */
-EXPORTED_SYM struct user_regs_struct *GetRegs(HIJACK *hijack)
+EXPORTED_SYM REGS *GetRegs(HIJACK *hijack)
 {
-	struct user_regs_struct *ret;
+	REGS *ret;
 	
 	if (!IsAttached(hijack))
 	{
@@ -356,7 +356,7 @@ EXPORTED_SYM struct user_regs_struct *GetRegs(HIJACK *hijack)
 		return NULL;
 	}
 	
-	ret = _hijack_malloc(hijack, sizeof(struct user_regs_struct));
+	ret = _hijack_malloc(hijack, sizeof(REGS));
 	if (!(ret))
 		return NULL;
 	
@@ -376,7 +376,7 @@ EXPORTED_SYM struct user_regs_struct *GetRegs(HIJACK *hijack)
  * @param regs Pointer to the CPU registers struct
  * \ingroup libhijack
  */
-EXPORTED_SYM int SetRegs(HIJACK *hijack, struct user_regs_struct *regs)
+EXPORTED_SYM int SetRegs(HIJACK *hijack, REGS *regs)
 {
 	if (!IsAttached(hijack))
 		return SetError(hijack, ERROR_NOTATTACHED);

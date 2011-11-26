@@ -2,7 +2,8 @@ TARGET=libhijack.so.0.5
 SONAME=libhijack.so.0
 CC=gcc
 ARCH=$(shell uname -m)
-CFLAGS=-fPIC -g -Wall -DDEBUG -D${ARCH} -I../include -fvisibility=hidden
+OS=$(shell uname -s)
+CFLAGS=-fPIC -g -Wall -DDEBUG -D${ARCH} -D${OS} -I../include -fvisibility=hidden
 SRCS=libhijack.c error.c misc.c ptrace.c map.c elf.c func.c
 OBJS=libhijack.o error.o misc.o ptrace.o map.o elf.o func.o
 
