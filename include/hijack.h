@@ -20,6 +20,7 @@
 /* PTrace abstraction */
 #if defined(FreeBSD)
     #include <machine/reg.h>
+    #include "rtld.h"
 
     #if defined(amd64)
         #define ElfW(type) Elf64_##type
@@ -37,6 +38,7 @@
     #define REGS    struct reg
 #elif defined(Linux)
     #define REGS    struct user_regs_struct
+    typedef enum _bool {false=0, true=1} bool;
 #else
     #error "Unsupported OS"
 #endif
@@ -59,8 +61,6 @@
 
 #define V_NONE		0
 #define V_BASEADDR	1
-
-typedef enum _bool {false=0, true=1} bool;
 
 struct _func;
 
@@ -107,6 +107,11 @@ typedef struct _hijack {
 	
 	/* Because of the limitations of the current API, we need to store the uncached funcs here */
 	struct _func *uncached_funcs;
+
+    /* FreeBSD uses struct Struct_Obj_Entry along with struct link_map */
+#if defined(FreeBSD)
+    struct Struct_Obj_Entry *soe;
+#endif
 } HIJACK;
 
 int GetErrorCode(HIJACK *);

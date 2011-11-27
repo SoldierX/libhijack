@@ -7,6 +7,10 @@ CFLAGS=-fPIC -g -Wall -DDEBUG -D${ARCH} -D${OS} -I../include -fvisibility=hidden
 SRCS=libhijack.c error.c misc.c ptrace.c map.c elf.c func.c
 OBJS=libhijack.o error.o misc.o ptrace.o map.o elf.o func.o
 
+ifeq (${OS}, FreeBSD)
+	CFLAGS += -I/usr/src/libexec/rtld-elf -I/usr/src/libexec/rtld-elf/${ARCH}
+endif
+
 ${TARGET}: ${OBJS}
 	${CC} -shared -Wl,-soname,${SONAME} -o ${TARGET} ${OBJS}
 

@@ -95,6 +95,14 @@ unsigned long find_link_map_addr(HIJACK *hijack)
 	unsigned long *addr;
 	unsigned long ret;
 	
+#if defined(FreeBSD)
+    addr = read_data(hijack, hijack->pltgot + (sizeof(unsigned long)), sizeof(unsigned long));
+    if (IsFlagSet(hijack, F_DEBUG) && IsFlagSet(hijack, F_DEBUG_VERBOSE))
+        fprintf(stderr, "[*] find_link_map_addr: First Struct_Obj_Entry: 0x%16lx\n", *addr);
+    hijack->soe = read_data(hijack, *addr, sizeof(struct Struct_Obj_Entry));
+    free(addr);
+    return (unsigned long)NULL;
+#endif
 	addr = read_data(hijack, hijack->pltgot + sizeof(unsigned long), sizeof(unsigned long));
 	if (!(addr))
 		return (unsigned long)NULL;
@@ -123,11 +131,22 @@ void parse_linkmap(HIJACK *hijack, struct link_map *linkmap, linkmap_callback ca
 	ElfW(Word) numsyms;
 	
 	char *name, *libname;
+
+#if defined(FreeBSD)
+    struct Struct_Obj_Entry *soe;
+    char *soename;
+#endif
 	
 	if (!(linkmap))
 		return;
 	
 	libname = read_str(hijack, (unsigned long)(linkmap->l_name));
+    if (IsFlagSet(hijack, F_DEBUG) && IsFlagSet(hijack, F_DEBUG_VERBOSE)) {
+        fprintf(stderr, "[*] parse_linkmap: linkmap->l_name: 0x%16lx\n", (unsigned long)(linkmap->l_name));
+        fprintf(stderr, "[*] parse_linkmap: linkmap->l_ld: 0x%16lx\n", (unsigned long)(linkmap->l_ld));
+    }
+
+
 	if (!(libname) || !strlen(libname)) {
 		if ((libname))
 			free(libname);
@@ -165,9 +184,32 @@ void parse_linkmap(HIJACK *hijack, struct link_map *linkmap, linkmap_callback ca
 		err = SetError(hijack, ERROR_NEEDED);
 		goto notfound;
 	}
+
+#if defined(FreeBSD)
+    soe = hijack->soe;
+    do {
+        soename = read_str(hijack, soe->path);
+        if (!strcmp(soename, libname))
+            break;
+
+        soe = read_data(hijack, (unsigned long)(soe->next), sizeof(struct Struct_Obj_Entry));
+    } while(soe != NULL);
+
+    if (soe == NULL) {
+        if (IsFlagSet(hijack, F_DEBUG))
+            fprintf(stderr, "[-] ERROR: soe is NULL when searching for %s!\n", libname);
+        err = SetError(hijack, ERROR_NONE);
+        goto notfound;
+    }
+
+    numsyms = soe->nchains;
+#else
+    if (IsFlagSet(hijack, F_DEBUG) && IsFlagSet(hijack, F_DEBUG_VERBOSE))
+        fprintf(stderr, "[*] parse_linkmap: hashtable: 0x%16lx\n", hashtable);
 	
 	hashtable += sizeof(ElfW(Word));
 	memcpy(&numsyms, read_data(hijack, hashtable, sizeof(ElfW(Word))), sizeof(ElfW(Word)));
+#endif
 	
 	if (IsFlagSet(hijack, F_DEBUG_VERBOSE))
 		fprintf(stderr, "numsyms: %u\n", (unsigned int)numsyms);
@@ -203,7 +245,7 @@ void parse_linkmap(HIJACK *hijack, struct link_map *linkmap, linkmap_callback ca
 			
 			symaddr += sizeof(ElfW(Sym));
 		} while (i++ < numsyms);
-	#elif defined(x86_64)
+	#elif defined(x86_64) || defined(amd64)
 		do {
 			if ((libsym))
 				free(libsym);
@@ -284,8 +326,13 @@ int init_hijack_system(HIJACK *hijack)
 	if ((hijack->pltgot = find_pltgot(hijack)) == (unsigned long)NULL)
 		return GetErrorCode(hijack);
 	
+#if defined(FreeBSD)
+    find_link_map_addr(hijack);
+    hijack->linkhead = &(hijack->soe->linkmap);
+#else
 	if ((hijack->linkhead = get_next_linkmap(hijack, find_link_map_addr(hijack))) == NULL)
 		return GetErrorCode(hijack);
+#endif
 	
 	return SetError(hijack, ERROR_NONE);
 }

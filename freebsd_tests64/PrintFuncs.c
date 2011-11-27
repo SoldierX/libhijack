@@ -32,12 +32,13 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "[-] Couldn't attach!\n");
 		exit(EXIT_FAILURE);
 	}
-	
+
 	if (LocateAllFunctions(hijack) != ERROR_NONE)
 	{
 		fprintf(stderr, "[-] Couldn't locate all functions!\n");
 		exit(EXIT_FAILURE);
 	}
+
 	
 	printf("[*] PLT/GOT @ 0x%016lx\n", hijack->pltgot);
 	printf("[*] Baseaddr @ 0x%016lx\n", hijack->baseaddr);
@@ -61,7 +62,7 @@ int main(int argc, char *argv[])
 			printf("\n");
 		}
 	}
-	
+
 	Detach(hijack);
 	
 	return 0;
