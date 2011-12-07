@@ -9,3 +9,6 @@ linux_tests32/*
 linux_tests64/*
 !linux_tests64/*.c
 !linux_tests64/*.asm
+freebsd_tests64/*
+!freebsd_tests64/*.c
+!freebsd_tests64/*.asm
