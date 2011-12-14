@@ -180,11 +180,6 @@ void parse_linkmap(HIJACK *hijack, struct link_map *linkmap, linkmap_callback ca
 	if ((libdyn))
 		free(libdyn);
 
-	if (symaddr == 0 || libstrtab == NULL || hashtable == 0) {
-		err = SetError(hijack, ERROR_NEEDED);
-		goto notfound;
-	}
-
 #if defined(FreeBSD)
     soe = hijack->soe;
     do {
@@ -203,6 +198,7 @@ void parse_linkmap(HIJACK *hijack, struct link_map *linkmap, linkmap_callback ca
     }
 
     numsyms = soe->nchains;
+    symaddr = (unsigned long)(soe->symtab);
 #else
     if (IsFlagSet(hijack, F_DEBUG) && IsFlagSet(hijack, F_DEBUG_VERBOSE))
         fprintf(stderr, "[*] parse_linkmap: hashtable: 0x%16lx\n", hashtable);
@@ -210,6 +206,11 @@ void parse_linkmap(HIJACK *hijack, struct link_map *linkmap, linkmap_callback ca
 	hashtable += sizeof(ElfW(Word));
 	memcpy(&numsyms, read_data(hijack, hashtable, sizeof(ElfW(Word))), sizeof(ElfW(Word)));
 #endif
+
+	if (symaddr == 0 || libstrtab == NULL || hashtable == 0) {
+		err = SetError(hijack, ERROR_NEEDED);
+		goto notfound;
+	}
 	
 	if (IsFlagSet(hijack, F_DEBUG_VERBOSE))
 		fprintf(stderr, "numsyms: %u\n", (unsigned int)numsyms);
