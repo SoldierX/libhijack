@@ -120,6 +120,7 @@ struct link_map *get_next_linkmap(HIJACK *hijack, unsigned long addr)
 	return (struct link_map *)read_data(hijack, addr, sizeof(struct link_map));
 }
 
+#if defined(FreeBSD)
 void freebsd_parse_soe(HIJACK *hijack, struct Struct_Obj_Entry *soe, linkmap_callback callback)
 {
     int err=0;
@@ -163,6 +164,7 @@ void freebsd_parse_soe(HIJACK *hijack, struct Struct_Obj_Entry *soe, linkmap_cal
 notfound:
     SetError(hijack, err);
 }
+#endif
 
 void parse_linkmap(HIJACK *hijack, struct link_map *linkmap, linkmap_callback callback)
 {
@@ -177,8 +179,9 @@ void parse_linkmap(HIJACK *hijack, struct link_map *linkmap, linkmap_callback ca
 	char *name, *libname;
 
 #if defined(FreeBSD)
-    struct Struct_Obj_Entry *soe;
-    char *soename;
+    /* This should _never_ be reached for FreeBSD. Use freebsd_parse_soe instead. */
+    SetError(hijack, ERROR_NOTIMPLEMENTED);
+    return;
 #endif
 
 	if (!(linkmap))
@@ -224,32 +227,11 @@ void parse_linkmap(HIJACK *hijack, struct link_map *linkmap, linkmap_callback ca
 	if ((libdyn))
 		free(libdyn);
 
-#if defined(FreeBSD)
-    soe = hijack->soe;
-    do {
-        soename = read_str(hijack, soe->path);
-        if (!strcmp(soename, libname))
-            break;
-
-        soe = read_data(hijack, (unsigned long)(soe->next), sizeof(struct Struct_Obj_Entry));
-    } while(soe != NULL);
-
-    if (soe == NULL) {
-        if (IsFlagSet(hijack, F_DEBUG))
-            fprintf(stderr, "[-] ERROR: soe is NULL when searching for %s!\n", libname);
-        err = SetError(hijack, ERROR_NONE);
-        goto notfound;
-    }
-
-    numsyms = soe->nchains;
-    symaddr = (unsigned long)(soe->symtab);
-#else
     if (IsFlagSet(hijack, F_DEBUG) && IsFlagSet(hijack, F_DEBUG_VERBOSE))
         fprintf(stderr, "[*] parse_linkmap: hashtable: 0x%16lx\n", hashtable);
 	
 	hashtable += sizeof(ElfW(Word));
 	memcpy(&numsyms, read_data(hijack, hashtable, sizeof(ElfW(Word))), sizeof(ElfW(Word)));
-#endif
 
 	if (symaddr == 0 || libstrtab == NULL || hashtable == 0) {
 		err = SetError(hijack, ERROR_NEEDED);
@@ -290,7 +272,7 @@ void parse_linkmap(HIJACK *hijack, struct link_map *linkmap, linkmap_callback ca
 			
 			symaddr += sizeof(ElfW(Sym));
 		} while (i++ < numsyms);
-	#elif defined(x86_64) || defined(amd64)
+	#elif defined(x86_64)
 		do {
 			if ((libsym))
 				free(libsym);
