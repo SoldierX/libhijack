@@ -120,6 +120,50 @@ struct link_map *get_next_linkmap(HIJACK *hijack, unsigned long addr)
 	return (struct link_map *)read_data(hijack, addr, sizeof(struct link_map));
 }
 
+void freebsd_parse_soe(HIJACK *hijack, struct Struct_Obj_Entry *soe, linkmap_callback callback)
+{
+    int err=0;
+    ElfW(Sym) *libsym=NULL;
+    unsigned long numsyms, symaddr=0, i=0;
+    ElfW(Dyn) *libdyn=NULL;
+    char *name;
+
+    numsyms = soe->nchains;
+    symaddr = (unsigned long)(soe->symtab);
+
+    do
+    {
+        if ((libsym))
+            free(libsym);
+
+        libsym = (ElfW(Sym) *)read_data(hijack, (unsigned long)symaddr, sizeof(ElfW(Sym)));
+        if (!(libsym)) {
+            err = GetErrorCode(hijack);
+            goto notfound;
+        }
+
+        if (ELF64_ST_TYPE(libsym->st_info) != STT_FUNC) {
+            symaddr += sizeof(ElfW(Sym));
+            continue;
+        }
+
+        name = read_str(hijack, (unsigned long)(soe->strtab + libsym->st_name));
+        if ((name)) {
+            if (callback(hijack, soe, name, ((unsigned long)(soe->mapbase) + libsym->st_value), (size_t)(libsym->st_size)) != CONTPROC) {
+                free(name);
+                break;
+            }
+
+            free(name);
+        }
+
+        symaddr += sizeof(ElfW(Sym));
+    } while (i++ < numsyms);
+
+notfound:
+    SetError(hijack, err);
+}
+
 void parse_linkmap(HIJACK *hijack, struct link_map *linkmap, linkmap_callback callback)
 {
 	int err;
@@ -136,7 +180,7 @@ void parse_linkmap(HIJACK *hijack, struct link_map *linkmap, linkmap_callback ca
     struct Struct_Obj_Entry *soe;
     char *soename;
 #endif
-	
+
 	if (!(linkmap))
 		return;
 	
@@ -282,7 +326,7 @@ notfound:
 	SetError(hijack, err);
 }
 
-CBRESULT syscall_callback(HIJACK *hijack, struct link_map *linkmap, char *name, unsigned long vaddr, size_t sz)
+CBRESULT syscall_callback(HIJACK *hijack, void *linkmap, char *name, unsigned long vaddr, size_t sz)
 {
 	unsigned long syscalladdr;
 	

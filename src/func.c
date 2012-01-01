@@ -27,10 +27,10 @@
 #include "hijack_elf.h"
 #include "hijack_func.h"
 
-CBRESULT func_found(HIJACK *, struct link_map *, char *, unsigned long, size_t);
+CBRESULT func_found(HIJACK *, void *, char *, unsigned long, size_t);
 void clean_uncached(HIJACK *);
 void free_func(FUNC *);
-CBRESULT func_found_uncached(HIJACK *, struct link_map *, char *, unsigned long, size_t);
+CBRESULT func_found_uncached(HIJACK *, void *, char *, unsigned long, size_t);
 void print_funcs(FUNC *);
 
 /**
@@ -41,11 +41,21 @@ void print_funcs(FUNC *);
  */
 EXPORTED_SYM int LocateAllFunctions(HIJACK *hijack)
 {
+#if defined(FreeBSD)
+    struct Struct_Obj_Entry *soe;
+#elif defined(Linux)
 	struct link_map *linkmap;
+#endif
 	
 	if (!IsAttached(hijack))
 		return SetError(hijack, ERROR_NOTATTACHED);
-	
+
+#if defined(FreeBSD)
+    soe = hijack->soe;
+    do {
+        freebsd_parse_soe(hijack, soe, func_found);
+    } while ((soe = read_data(hijack, soe->next, sizeof(struct Struct_Obj_Entry))) != NULL);
+#elif defined(Linux)
 	linkmap = hijack->linkhead;
 	do
 	{
@@ -55,11 +65,12 @@ EXPORTED_SYM int LocateAllFunctions(HIJACK *hijack)
 			fprintf(stderr, "[*] Loading from %s\n", read_str(hijack, (unsigned long)linkmap->l_name));
 		parse_linkmap(hijack, linkmap, func_found);
 	} while ((linkmap = get_next_linkmap(hijack, (unsigned long)(linkmap->l_next))) != NULL);
+#endif
 	
 	return SetError(hijack, ERROR_NONE);
 }
 
-CBRESULT func_found(HIJACK *hijack, struct link_map *linkmap, char *name, unsigned long vaddr, size_t sz)
+CBRESULT func_found(HIJACK *hijack, void *linkmap, char *name, unsigned long vaddr, size_t sz)
 {
 	FUNC *f;
 	
@@ -85,8 +96,13 @@ CBRESULT func_found(HIJACK *hijack, struct link_map *linkmap, char *name, unsign
 		
 		f = hijack->funcs;
 	}
-	
-	f->libname = read_str(hijack, (unsigned long)(linkmap->l_name));
+
+#if defined(FreeBSD)
+    /* linkmap actually points to an Struct_Obj_Entry struct */
+    f->libname = read_str(hijack, (unsigned long)(((struct Struct_Obj_Entry *)linkmap)->path));
+#elif defined(Linux)    
+	f->libname = read_str(hijack, (unsigned long)(((struct link_map *)linkmap)->l_name));
+#endif
 	f->name = strdup(name);
 	f->sz = sz;
 	f->vaddr = vaddr;
@@ -386,7 +402,7 @@ void free_func(FUNC *f)
 	free(f);
 }
 
-CBRESULT func_found_uncached(HIJACK *hijack, struct link_map *linkmap, char *name, unsigned long vaddr, size_t sz)
+CBRESULT func_found_uncached(HIJACK *hijack, void *linkmap, char *name, unsigned long vaddr, size_t sz)
 {
 	FUNC *f;
 	
@@ -413,7 +429,7 @@ CBRESULT func_found_uncached(HIJACK *hijack, struct link_map *linkmap, char *nam
 		f = hijack->uncached_funcs;
 	}
 	
-	f->libname = read_str(hijack, (unsigned long)(linkmap->l_name));
+	f->libname = read_str(hijack, (unsigned long)(((struct link_map *)linkmap)->l_name));
 	f->name = strdup(name);
 	f->sz = sz;
 	f->vaddr = vaddr;

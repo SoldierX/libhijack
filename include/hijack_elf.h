@@ -39,16 +39,17 @@ struct _hijack;
 typedef enum _cbresult { NONE=0, CONTPROC=1, TERMPROC=2 } CBRESULT;
 
 /* params: &HIJACK, &linkmap, name, vaddr, size */
-typedef CBRESULT (*linkmap_callback)(struct _hijack *, struct link_map *, char *, unsigned long, size_t);
+typedef CBRESULT (*linkmap_callback)(struct _hijack *, void *, char *, unsigned long, size_t);
 
 int init_elf_headers(HIJACK *);
 unsigned long find_pltgot(struct _hijack *);
 unsigned long find_link_map_addr(HIJACK *);
 struct link_map *get_next_linkmap(HIJACK *, unsigned long);
+void freebsd_parse_soe(HIJACK *, struct Struct_Obj_Entry *, linkmap_callback);
 void parse_linkmap(HIJACK *, struct link_map *, linkmap_callback);
 unsigned long search_mem(HIJACK *, unsigned long, size_t, void *, size_t);
 
-CBRESULT syscall_callback(HIJACK *, struct link_map *, char *, unsigned long, size_t);
+CBRESULT syscall_callback(HIJACK *, void *, char *, unsigned long, size_t);
 
 int init_hijack_system(HIJACK *);
 
