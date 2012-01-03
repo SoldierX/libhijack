@@ -19,6 +19,7 @@
 #include <sys/wait.h>
 #include <sys/ptrace.h>
 #include <sys/user.h>
+#include <sys/mman.h>
 
 #include <errno.h>
 
@@ -58,12 +59,60 @@ unsigned long map_memory_args(HIJACK *hijack, size_t sz, struct mmap_arg_struct 
 	unsigned long addr;
 	
 	regs = malloc(sizeof(REGS));
+    fprintf(stderr, "[*] size of REGS: %lu\n", sizeof(REGS));
+    fprintf(stderr, "[*] regs are at 0x%016lx\n", (unsigned long)regs);
 	
+#if defined(FreeBSD)
+    if (ptrace(PTRACE_GETREGS, hijack->pid, regs, NULL) < 0) {
+        err = ERROR_SYSCALL;
+        goto end;
+    }
+
+    regs->r_rax = MMAPSYSCALL;
+    regs->r_rip = hijack->syscalladdr;
+    regs->r_rdi = mmap_args->addr;
+    regs->r_rsi = mmap_args->len;
+    regs->r_rdx = mmap_args->prot;
+    regs->r_rbx = mmap_args->flags;
+    regs->r_r8 = -1;
+    regs->r_r9 = 0;
+    regs->r_rsp -= sizeof(unsigned long);
+
+    if (ptrace(PTRACE_SETREGS, hijack->pid, regs, 0) < 0) {
+        err = ERROR_SYSCALL;
+        goto end;
+    }
+    addr = 0;
+    write_data(hijack, regs->r_rsp, &addr, sizeof(unsigned long));
+
+    addr = MMAPSYSCALL;
+    if (ptrace(PTRACE_SINGLESTEP, hijack->pid, (caddr_t)1, 0) < 0) {
+        err = ERROR_SYSCALL;
+        goto end;
+    }
+
+    do {
+        waitpid(hijack->pid, &i, 0);
+    } while (!WIFSTOPPED(i));
+
+    ptrace(PTRACE_GETREGS, hijack->pid, regs, 0);
+    addr = regs->r_rax;
+
+    if ((long)addr == -1) {
+        if (IsFlagSet(hijack, F_DEBUG))
+            fprintf(stderr, "[-] Calling mmap failed!\n");
+
+        err = ERROR_CHILDERROR;
+        ptrace(PTRACE_SETREGS, hijack->pid, regs, 0);
+        goto end;
+    }
+#else
 	if (ptrace(PTRACE_GETREGS, hijack->pid, NULL, &regs_backup) < 0) {
 		err = ERROR_SYSCALL;
 		goto end;
 	}
 	memcpy(regs, &regs_backup, sizeof(REGS));
+#endif
 	
 	#if defined(i686)
 		regs->eip = (long)(hijack->syscalladdr);
@@ -134,14 +183,23 @@ unsigned long map_memory_args(HIJACK *hijack, size_t sz, struct mmap_arg_struct 
 		if (IsFlagSet(hijack, F_DEBUG))
 			fprintf(stderr, "[-] Could not map address. Calling mmap failed!\n");
 		
+#if defined(FreeBSD)
+        ptrace(PTRACE_SETREGS, hijack->pid, &regs_backup, 0);
+#else
 		ptrace(PTRACE_SETREGS, hijack->pid, NULL, &regs_backup);
+#endif
 		err = ERROR_CHILDERROR;
 		goto end;
 	}
 
 end:
+#if defined(FreeBSD)
+    if (ptrace(PTRACE_SETREGS, hijack->pid, &regs_backup, 0) < 0)
+        err = ERROR_SYSCALL;
+#else
 	if (ptrace(PTRACE_SETREGS, hijack->pid, NULL, &regs_backup) < 0)
 		err = ERROR_SYSCALL;
+#endif
 	
 	if (err == ERROR_NONE)
 		ret = addr;
