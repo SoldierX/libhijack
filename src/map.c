@@ -73,7 +73,7 @@ unsigned long map_memory_args(HIJACK *hijack, size_t sz, struct mmap_arg_struct 
     regs->r_rdi = mmap_args->addr;
     regs->r_rsi = mmap_args->len;
     regs->r_rdx = mmap_args->prot;
-    regs->r_rbx = mmap_args->flags;
+    regs->r_r10 = mmap_args->flags;
     regs->r_r8 = -1;
     regs->r_r9 = 0;
     regs->r_rsp -= sizeof(unsigned long);
@@ -90,10 +90,6 @@ unsigned long map_memory_args(HIJACK *hijack, size_t sz, struct mmap_arg_struct 
         err = ERROR_SYSCALL;
         goto end;
     }
-
-    do {
-        waitpid(hijack->pid, &i, 0);
-    } while (!WIFSTOPPED(i));
 
     ptrace(PTRACE_GETREGS, hijack->pid, regs, 0);
     addr = regs->r_rax;
