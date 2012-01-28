@@ -198,9 +198,32 @@ end:
 	return ret;
 }
 
+#if defined(FreeBSD)
+int inject_shellcode_freebsd(HIJACK *hijack, unsigned long addr, void *data, size_t sz)
+{
+    REGS origregs;
+
+    write_data(hijack, addr, data, sz);
+
+    if (ptrace(PTRACE_GETREGS, hijack->pid, &origregs, 0) < 0)
+        return SetError(hijack, ERROR_SYSCALL);
+
+    origregs.r_rip = addr;
+
+    if (ptrace(PTRACE_SETREGS, hijack->pid, &origregs, 0) < 0)
+        return SetError(hijack, ERROR_SYSCALL);
+
+    return SetError(hijack, ERROR_NONE);
+}
+#endif
+
 int inject_shellcode(HIJACK *hijack, unsigned long addr, void *data, size_t sz)
 {
 	REGS origregs;
+
+#if defined(FreeBSD)
+    return inject_shellcode_freebsd(hijack, addr, data, sz);
+#endif
 	
 	write_data(hijack, addr, data, sz);
 	
