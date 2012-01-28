@@ -110,6 +110,31 @@ CBRESULT func_found(HIJACK *hijack, void *linkmap, char *name, unsigned long vad
 	return CONTPROC;
 }
 
+PLT *get_all_PLTs_freebsd(HIJACK *hijack)
+{
+    struct Struct_Obj_Entry *soe;
+    PLT *plt=NULL, *ret=NULL;
+
+    soe = hijack->soe;
+    do {
+        if (!(plt)) {
+            plt = ret = _hijack_malloc(hijack, sizeof(PLT));
+            if (!(plt))
+                return NULL;
+        } else {
+            plt->next = _hijack_malloc(hijack, sizeof(PLT));
+            if (!(plt->next))
+                return ret;
+            plt = plt->next;
+        }
+
+        plt->libname = read_str(hijack, soe->path);
+        plt->p.raw = soe->pltgot;
+    } while ((soe = read_data(hijack, soe->next, sizeof(struct Struct_Obj_Entry))));
+
+    return ret;
+}
+
 /**
  * Get location of the PLT in each dynamically-loaded shared object.
  * @param hijack Pointer to the HIJACk instance
@@ -122,6 +147,10 @@ EXPORTED_SYM PLT *GetAllPLTs(HIJACK *hijack)
 	PLT *plt=NULL, *ret=NULL;
 	ElfW(Dyn) *dyn=NULL;
 	unsigned long addr;
+
+#if defined(FreeBSD)
+    return get_all_PLTs_freebsd(hijack);
+#endif
 
 	if (!(IsAttached(hijack))) {
 		SetError(hijack, ERROR_NOTATTACHED);

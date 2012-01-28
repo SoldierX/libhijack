@@ -43,10 +43,11 @@ int main(int argc, char *argv[])
 	printf("[*] PLT/GOT @ 0x%016lx\n", hijack->pltgot);
 	printf("[*] Baseaddr @ 0x%016lx\n", hijack->baseaddr);
 
+#if 0
     for (func = hijack->funcs; func != NULL; func = func->next)
         printf("[+] %s %s: 0x%016lx\n", func->libname, func->name, func->vaddr);
+#endif
 
-#if 0
 	plts = GetAllPLTs(hijack);
 	for (plt = plts; plt != NULL; plt = plt->next)
 	{
@@ -66,7 +67,6 @@ int main(int argc, char *argv[])
 			printf("\n");
 		}
 	}
-#endif
 
 	Detach(hijack);
 	
