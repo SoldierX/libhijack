@@ -110,6 +110,7 @@ CBRESULT func_found(HIJACK *hijack, void *linkmap, char *name, unsigned long vad
 	return CONTPROC;
 }
 
+#if defined(FreeBSD)
 PLT *get_all_PLTs_freebsd(HIJACK *hijack)
 {
     struct Struct_Obj_Entry *soe;
@@ -134,6 +135,7 @@ PLT *get_all_PLTs_freebsd(HIJACK *hijack)
 
     return ret;
 }
+#endif
 
 /**
  * Get location of the PLT in each dynamically-loaded shared object.
