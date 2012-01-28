@@ -296,6 +296,29 @@ EXPORTED_SYM FUNC *FindAllFunctionsByLibraryName(HIJACK *hijack, char *libname)
 	return b;
 }
 
+#if defined(FreeBSD)
+FUNC *FindAllFunctionsByLibraryName_uncached_freebsd(HIJACK *hijack, char *libname)
+{
+    char *t_libname;
+    struct Struct_Obj_Entry *soe;
+
+    clean_uncached(hijack);
+
+    soe = hijack->soe;
+    do {
+        t_libname = read_str(hijack, soe->path);
+        if (!(t_libname) || strstr(t_libname, libname) == NULL)
+            continue;
+
+        freebsd_parse_soe(hijack, soe, func_found_uncached);
+
+        return hijack->uncached_funcs;
+    } while ((soe = read_data(hijack, soe->next, sizeof(struct Struct_Obj_Entry))));
+
+    return NULL;
+}
+#endif
+
 /**
  * Find all dynamically loaded functions in a loaded library
  * @param hijack Pointer to the HIJACK instance
@@ -311,6 +334,10 @@ EXPORTED_SYM FUNC *FindAllFunctionsByLibraryName_uncached(HIJACK *hijack, char *
 	if (!IsAttached(hijack))
 		return NULL;
 	
+#if defined(FreeBSD)
+    return FindAllFunctionsByLibraryName_uncached_freebsd(hijack, libname);
+#endif
+
 	/*
 	 * Do this in two steps:
 	 * 1) Cache all functions in libraries that have libname in its name
@@ -342,6 +369,37 @@ EXPORTED_SYM FUNC *FindAllFunctionsByLibraryName_uncached(HIJACK *hijack, char *
 	return NULL;
 }
 
+#if defined(FreeBSD)
+FUNC *FindFunctionInLibraryByName_freebsd(HIJACK *hijack, char *libname, char *funcname)
+{
+    FUNC *ret=NULL, *next, *prev;
+    struct Struct_Obj_Entry *soe;
+
+    FindAllFunctionsByLibraryName_uncached(hijack, libname);
+
+	ret = prev = hijack->uncached_funcs;
+	while (ret != NULL)
+	{
+		next = ret->next;
+		if (!(ret->name) || strcmp(ret->name, funcname))
+		{
+			if (ret == hijack->uncached_funcs)
+				hijack->uncached_funcs = prev = next;
+			else
+				prev->next = next;
+			
+			free_func(ret);
+		}
+		else
+			prev = ret;
+		
+		ret = next;
+	}
+
+    return hijack->uncached_funcs;
+}
+#endif
+
 /**
  * Find a function in a dynamically loaded library
  * @param hijack Pointer to the HIJACK instance
@@ -359,6 +417,10 @@ EXPORTED_SYM FUNC *FindFunctionInLibraryByName(HIJACK *hijack, char *libname, ch
 	if (!IsAttached(hijack))
 		return NULL;
 	
+#if defined(FreeBSD)
+    return FindFunctionInLibraryByName_freebsd(hijack, libname, funcname);
+#endif
+
 	/*
 	 * Do this in two steps:
 	 * 1) Cache all functions in libraries that have libname in its name
@@ -458,7 +520,11 @@ CBRESULT func_found_uncached(HIJACK *hijack, void *linkmap, char *name, unsigned
 		f = hijack->uncached_funcs;
 	}
 	
+#if defined(FreeBSD)
+    f->libname = read_str(hijack, (unsigned long)(((struct Struct_Obj_Entry *)linkmap)->path));
+#else
 	f->libname = read_str(hijack, (unsigned long)(((struct link_map *)linkmap)->l_name));
+#endif
 	f->name = strdup(name);
 	f->sz = sz;
 	f->vaddr = vaddr;
