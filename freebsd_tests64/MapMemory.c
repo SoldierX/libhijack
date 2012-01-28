@@ -48,6 +48,10 @@ int main(int argc, char *argv[])
     }
 
     addr = MapMemory(hijack, NULL, 8192, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_ANON | MAP_SHARED);
+    if (GetErrorCode(hijack) != ERROR_NONE) {
+        fprintf(stderr, "[-] %s\n", GetErrorString(hijack));
+        perror("ptrace");
+    }
 	
 	printf("[*] PLT/GOT @ 0x%016lx\n", hijack->pltgot);
 	printf("[*] Baseaddr @ 0x%016lx\n", hijack->baseaddr);
