@@ -45,7 +45,9 @@ int init_elf_headers(HIJACK *);
 unsigned long find_pltgot(struct _hijack *);
 unsigned long find_link_map_addr(HIJACK *);
 struct link_map *get_next_linkmap(HIJACK *, unsigned long);
+#if defined(FreeBSD)
 void freebsd_parse_soe(HIJACK *, struct Struct_Obj_Entry *, linkmap_callback);
+#endif
 void parse_linkmap(HIJACK *, struct link_map *, linkmap_callback);
 unsigned long search_mem(HIJACK *, unsigned long, size_t, void *, size_t);
 
