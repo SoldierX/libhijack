@@ -1,4 +1,4 @@
-TARGET=libhijack.so.0.5
+TARGET=libhijack.so.0.6
 SONAME=libhijack.so.0
 CC=gcc
 ARCH=$(shell uname -m)
