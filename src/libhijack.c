@@ -371,8 +371,11 @@ EXPORTED_SYM REGS *GetRegs(HIJACK *hijack)
 	if (!(ret))
 		return NULL;
 	
-	if (ptrace(PTRACE_GETREGS, hijack->pid, NULL, ret) < 0)
-	{
+#if defined(FreeBSD)
+    if (ptrace(PTRACE_GETREGS, hijack->pid, ret, 0)) {
+#else
+	if (ptrace(PTRACE_GETREGS, hijack->pid, NULL, ret) < 0) {
+#endif
 		SetError(hijack, ERROR_SYSCALL);
 		free(ret);
 		return NULL;
@@ -392,7 +395,11 @@ EXPORTED_SYM int SetRegs(HIJACK *hijack, REGS *regs)
 	if (!IsAttached(hijack))
 		return SetError(hijack, ERROR_NOTATTACHED);
 	
+#if defined(FreeBSD)
+    if (ptrace(PTRACE_SETREGS, hijack->pid, regs, 0) < 0)
+#else
 	if (ptrace(PTRACE_SETREGS, hijack->pid, NULL, regs) < 0)
+#endif
 		return SetError(hijack, ERROR_SYSCALL);
 	
 	return SetError(hijack, ERROR_NONE);
