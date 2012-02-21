@@ -416,3 +416,8 @@ EXPORTED_SYM unsigned long FindFunctionInGot(HIJACK *hijack, unsigned long pltad
 {
 	return find_func_addr_in_got(hijack, pltaddr, addr);
 }
+
+EXPORTED_SYM int LoadLibrary(HIJACK *hijack, char *lib)
+{
+    return load_library(hijack, lib);
+}

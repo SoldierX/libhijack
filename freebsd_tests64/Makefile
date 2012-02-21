@@ -6,6 +6,7 @@ all:
 	gmake FindSyscall
 	gmake MapMemory
 	gmake FindFunc
+	gmake InjectSharedObject
 
 clean:
 	rm -f *.o PrintFuncs FindSyscall
@@ -21,3 +22,6 @@ MapMemory: MapMemory.c
 
 FindFunc: FindFunc.c
 	${CC} -o FindFunc ${CFLAGS} -lhijack FindFunc.c
+
+InjectSharedObject: InjectSharedObject.c
+	${CC} -o InjectSharedObject ${CFLAGS} -lhijack InjectSharedObject.c
