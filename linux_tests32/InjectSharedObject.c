@@ -33,6 +33,8 @@ int main(int argc, char *argv[])
 		usage(argv[0]);
 	
 	hijack = InitHijack();
+    ToggleFlag(hijack, F_DEBUG);
+    ToggleFlag(hijack, F_DEBUG_VERBOSE);
 	AssignPid(hijack, atoi(argv[1]));
 	
 	if (Attach(hijack) != ERROR_NONE)
