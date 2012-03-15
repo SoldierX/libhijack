@@ -108,13 +108,17 @@ int rtld_load_headers(HIJACK *hijack, struct rtld_aux *aux) {
  * Logic taken from freebsd/9-stable/libexec/rtld-elf/map_object.c
  */
 void rtld_create_maps(HIJACK *hijack, struct rtld_aux *aux) {
-    struct rtld_loadable *first_loadable, *last_loadable;
+    struct rtld_loadable *first_loadable, *last_loadable, *loadable;
+    int err;
+    char *bss;
+    unsigned long bss_vaddr, bss_addr, bss_page, nclear;
 
     /* Grab first and last loadable PHDRs */
     first_loadable = aux->loadables;
     for (last_loadable = aux->loadables; last_loadable->next != NULL; last_loadable = last_loadable->next)
         ;
 
+    /* Create one large mapping to hold the whole shared object */
     aux->base_offset = trunc_page(first_loadable->phdr.phdr->p_offset);
     aux->base_vaddr = trunc_page(first_loadable->phdr.phdr->p_vaddr);
     aux->base_vlimit = round_page(last_loadable->phdr.phdr->p_vaddr + last_loadable->phdr.phdr->p_memsz);
@@ -127,6 +131,41 @@ void rtld_create_maps(HIJACK *hijack, struct rtld_aux *aux) {
         fprintf(stderr, "map[0x%016lx]:\n", aux->mapping);
         fprintf(stderr, "    mapsize\t= %lu\n", aux->mapsize);
         fprintf(stderr, "    limit\t= %lu\n", aux->base_vlimit);
+    }
+
+    /* Do the math for all the PHDRs */
+    for (loadable = first_loadable; loadable != NULL; loadable = loadable->next) {
+        loadable->offset = trunc_page(loadable->phdr.phdr->p_offset);
+        loadable->vaddr = trunc_page(loadable->phdr.phdr->p_vaddr);
+        loadable->limit = round_page(loadable->phdr.phdr->p_vaddr + loadable->phdr.phdr->p_filesz);
+        loadable->addr = aux->mapping + (loadable->vaddr - aux->base_vaddr);
+
+        if (loadable->phdr.phdr->p_filesz != loadable->phdr.phdr->p_memsz) {
+            /* BSS */
+            bss_vaddr = loadable->phdr.phdr->p_vaddr + loadable->phdr.phdr->p_filesz;
+            bss_addr = aux->mapping + (bss_vaddr - aux->base_vaddr);
+            bss_page = aux->mapping + (trunc_page(bss_vaddr) - aux->base_vaddr);
+            nclear = loadable->limit - bss_vaddr;
+
+            if (nclear > 0) {
+                bss = _hijack_malloc(hijack, nclear);
+                if (!(bss))
+                    return;
+                err = WriteData(hijack, bss_addr, bss, nclear);
+                free(bss);
+
+                if (IsFlagSet(hijack, F_DEBUG) && IsFlagSet(hijack, F_DEBUG_VERBOSE)) {
+                    fprintf(stderr, "Wrote BSS to 0x%016lx. Length %lu.\n", bss_addr, nclear);
+                    fprintf(stderr, "    returned %s\n", GetErrorString(hijack));
+                }
+            }
+        } else {
+            err = WriteData(hijack, loadable->addr, aux->lmap + loadable->offset, loadable->phdr.phdr->p_memsz);
+            if (IsFlagSet(hijack, F_DEBUG) && IsFlagSet(hijack, F_DEBUG_VERBOSE)) {
+                fprintf(stderr, "Wrote to 0x%016lx. Length %lu. From offset %lu.\n", loadable->addr, loadable->phdr.phdr->p_memsz, loadable->offset);
+                fprintf(stderr, "    returned %s\n", GetErrorString(hijack));
+            }
+        }
     }
 }
 
