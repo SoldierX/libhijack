@@ -53,6 +53,9 @@ struct rtld_aux {
         ElfW(Phdr) *phdr;
     } phdr;
 
+    ElfW(Phdr) *phdyn;
+    ElfW(Phdr) *phtls;
+
     unsigned long base_addr;
     unsigned long base_vaddr;
     unsigned long base_offset;
@@ -96,9 +99,16 @@ int rtld_load_headers(HIJACK *hijack, struct rtld_aux *aux) {
     aux->ehdr.ehdr = aux->lmap;
     aux->phdr.phdr = aux->lmap + aux->ehdr.ehdr->e_phoff;
 
-    for (i=0; i < aux->ehdr.ehdr->e_phnum; i++)
-        if (aux->phdr.phdr[i].p_type == PT_LOAD)
-            rtld_add_loadable(hijack, aux, aux->phdr.phdr + i);
+    for (i=0; i < aux->ehdr.ehdr->e_phnum; i++) {
+        switch (aux->phdr.phdr[i].p_type) {
+            case PT_DYNAMIC:
+                aux->phdyn = aux->phdr.phdr + i;
+                break;
+            case PT_LOAD:
+                rtld_add_loadable(hijack, aux, aux->phdr.phdr + i);
+                break;
+        }
+    }
 
     return 0;
 }
@@ -111,7 +121,7 @@ void rtld_create_maps(HIJACK *hijack, struct rtld_aux *aux) {
     struct rtld_loadable *first_loadable, *last_loadable, *loadable;
     int err;
     char *bss;
-    unsigned long bss_vaddr, bss_addr, bss_page, nclear;
+    unsigned long bss_vaddr, bss_addr, bss_page, bss_vlimit, nclear;
 
     /* Grab first and last loadable PHDRs */
     first_loadable = aux->loadables;
@@ -156,17 +166,29 @@ void rtld_create_maps(HIJACK *hijack, struct rtld_aux *aux) {
 
                 if (IsFlagSet(hijack, F_DEBUG) && IsFlagSet(hijack, F_DEBUG_VERBOSE)) {
                     fprintf(stderr, "Wrote BSS to 0x%016lx. Length %lu.\n", bss_addr, nclear);
-                    fprintf(stderr, "    returned %s\n", GetErrorString(hijack));
                 }
             }
         } else {
             err = WriteData(hijack, loadable->addr, aux->lmap + loadable->offset, loadable->phdr.phdr->p_memsz);
             if (IsFlagSet(hijack, F_DEBUG) && IsFlagSet(hijack, F_DEBUG_VERBOSE)) {
                 fprintf(stderr, "Wrote to 0x%016lx. Length %lu. From offset %lu.\n", loadable->addr, loadable->phdr.phdr->p_memsz, loadable->offset);
-                fprintf(stderr, "    returned %s\n", GetErrorString(hijack));
             }
         }
     }
+}
+
+void rtld_hook_into_rtld(HIJACK *hijack, struct rtld_aux *aux)
+{
+    struct Struct_Obj_Entry soe;
+    
+    memset(&soe, 0x00, sizeof(struct Struct_Obj_Entry));
+
+    obj->mapbase = aux->mapping;
+    obj->mapsize = aux->mapsize;
+    obj->textsize = round_page(aux->loadables->phdr.phdr->p_vaddr + aux->loadables->phdr.phdr->p_memsz) - aux->base_vaddr;
+    obj->vaddrbase = aux->base_vaddr;
+    obj->relocbase = aux->mapping - aux->base_vaddr;
+
 }
 
 EXPORTED_SYM int load_library(HIJACK *hijack, char *path)
@@ -185,6 +207,8 @@ EXPORTED_SYM int load_library(HIJACK *hijack, char *path)
         return -1;
 
     rtld_create_maps(hijack, &aux);
+
+    rtld_hook_into_rtld(hijack, &aux);
 
     return 0;
 }
