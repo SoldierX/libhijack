@@ -55,6 +55,13 @@ struct rtld_aux {
 
     ElfW(Phdr) *phdyn;
     ElfW(Phdr) *phtls;
+    ElfW(Phdr) *phinterp;
+
+    unsigned long phdr_vaddr;
+    unsigned long phsize;
+    unsigned long stack_flags;
+    unsigned long relro_page;
+    unsigned long relro_size;
 
     unsigned long base_addr;
     unsigned long base_vaddr;
@@ -62,6 +69,9 @@ struct rtld_aux {
     unsigned long base_vlimit;
     unsigned long mapsize;
     unsigned long mapping;
+
+    /* Used for storing auxiliary info (struct Struct_Obj_entry */
+    unsigned long auxmap;
 
     struct rtld_loadable *loadables;
 };
@@ -101,11 +111,25 @@ int rtld_load_headers(HIJACK *hijack, struct rtld_aux *aux) {
 
     for (i=0; i < aux->ehdr.ehdr->e_phnum; i++) {
         switch (aux->phdr.phdr[i].p_type) {
+            case PT_INTERP:
+                aux->phinterp = aux->phdr.phdr + i;
+                break;
+            case PT_PHDR:
+                aux->phdr_vaddr = aux->phdr.phdr[i].p_vaddr;
+                aux->phsize = aux->phdr.phdr[i].p_memsz;
+                break;
             case PT_DYNAMIC:
                 aux->phdyn = aux->phdr.phdr + i;
                 break;
             case PT_LOAD:
                 rtld_add_loadable(hijack, aux, aux->phdr.phdr + i);
+                break;
+            case PT_TLS:
+                aux->phtls = aux->phdr.phdr + i;
+                break;
+            case PT_GNU_RELRO:
+                aux->relro_page = aux->phdr.phdr[i].p_vaddr;
+                aux->relro_size = aux->phdr.phdr[i].p_memsz;
                 break;
         }
     }
@@ -183,12 +207,37 @@ void rtld_hook_into_rtld(HIJACK *hijack, struct rtld_aux *aux)
     
     memset(&soe, 0x00, sizeof(struct Struct_Obj_Entry));
 
-    obj->mapbase = aux->mapping;
-    obj->mapsize = aux->mapsize;
-    obj->textsize = round_page(aux->loadables->phdr.phdr->p_vaddr + aux->loadables->phdr.phdr->p_memsz) - aux->base_vaddr;
-    obj->vaddrbase = aux->base_vaddr;
-    obj->relocbase = aux->mapping - aux->base_vaddr;
+    soe.phsize = aux->ehdr.ehdr->e_phnum * sizeof(ElfW(Phdr));
+    soe.mapbase = aux->mapping;
+    soe.mapsize = aux->mapsize;
+    soe.textsize = round_page(aux->loadables->phdr.phdr->p_vaddr + aux->loadables->phdr.phdr->p_memsz) - aux->base_vaddr;
+    soe.vaddrbase = aux->base_vaddr;
+    soe.relocbase = aux->mapping - aux->base_vaddr;
+    soe.dynamic = (ElfW(Dyn) *)(soe.relocbase + aux->phdyn->p_vaddr);
+    if (aux->ehdr.ehdr->e_entry)
+        soe.entry = soe.relocbase + aux->ehdr.ehdr->e_entry;
+    if (aux->phdr_vaddr) {
+        soe.phdr = (ElfW(Phdr) *)(soe.relocbase + aux->phdr_vaddr);
+    } else {
+        soe.phdr = _hijack_malloc(hijack, soe.phsize);
+        if (!(soe.phdr))
+            return;
 
+        memcpy(soe.phdr, aux->ehdr.ptr + aux->ehdr.ehdr->e_phoff, soe.phsize);
+        soe.phdr_alloc = true;
+    }
+    if ((aux->phinterp))
+        soe.interp = soe.relocbase + aux->phinterp->p_vaddr;
+    if ((aux->phtls)) {
+        /* TODO: Figure this part out */
+    }
+    soe.stack_flags = PROT_READ | PROT_WRITE | PROT_EXEC;
+    soe.relro_page = soe.relocbase + trunc_page(soe.relro_page);
+    soe.relro_size = round_page(soe.relro_size);
+
+    /* Create auxiliary mapping and write the Struct_Obj_Entry */
+    aux->auxmap = MapMemory(hijack, (unsigned long)NULL, getpagesize(), PROT_READ | PROT_WRITE | PROT_EXEC, MAP_ANON | MAP_SHARED);
+    WriteData(hijack, aux->auxmap, &soe, sizeof(struct Struct_Obj_Entry));
 }
 
 EXPORTED_SYM int load_library(HIJACK *hijack, char *path)
