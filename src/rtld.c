@@ -70,7 +70,7 @@ struct rtld_aux {
     unsigned long mapsize;
     unsigned long mapping;
 
-    /* Used for storing auxiliary info (struct Struct_Obj_entry */
+    /* Used for storing auxiliary info (struct Struct_Obj_entry) */
     unsigned long auxmap;
 
     struct rtld_loadable *loadables;
@@ -203,10 +203,11 @@ void rtld_create_maps(HIJACK *hijack, struct rtld_aux *aux) {
 
 void rtld_hook_into_rtld(HIJACK *hijack, struct rtld_aux *aux)
 {
-    struct Struct_Obj_Entry soe;
+    struct Struct_Obj_Entry soe, *realsoe, *prevsoe=NULL;
     
     memset(&soe, 0x00, sizeof(struct Struct_Obj_Entry));
 
+    /* Fill in a new Struct_Obj_Entry struct */
     soe.phsize = aux->ehdr.ehdr->e_phnum * sizeof(ElfW(Phdr));
     soe.mapbase = aux->mapping;
     soe.mapsize = aux->mapsize;
@@ -238,6 +239,33 @@ void rtld_hook_into_rtld(HIJACK *hijack, struct rtld_aux *aux)
     /* Create auxiliary mapping and write the Struct_Obj_Entry */
     aux->auxmap = MapMemory(hijack, (unsigned long)NULL, getpagesize(), PROT_READ | PROT_WRITE | PROT_EXEC, MAP_ANON | MAP_SHARED);
     WriteData(hijack, aux->auxmap, &soe, sizeof(struct Struct_Obj_Entry));
+
+    /* Hook the Struct_Object_Entry into the real linked list */
+    realsoe = read_data(hijack, hijack->soe, sizeof(struct Struct_Obj_Entry));
+    do {
+        if ((realsoe)) {
+            if ((prevsoe))
+                free(prevsoe);
+
+            prevsoe = realsoe;
+            realsoe = read_data(hijack, realsoe->next, sizeof(struct Struct_Obj_Entry));
+
+            if (!(realsoe))
+                break;
+        } else {
+            break;
+        }
+    } while(realsoe->next != NULL);
+
+    if (!(realsoe))
+        return;
+
+    realsoe->next = (struct Struct_Obj_Entry *)(aux->auxmap);
+    WriteData(hijack, prevsoe->next, realsoe, sizeof(struct Struct_Obj_Entry));
+
+    /* Clean up */
+    free(prevsoe);
+    free(realsoe);
 }
 
 EXPORTED_SYM int load_library(HIJACK *hijack, char *path)
