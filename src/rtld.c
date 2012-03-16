@@ -241,24 +241,34 @@ void rtld_hook_into_rtld(HIJACK *hijack, struct rtld_aux *aux)
     WriteData(hijack, aux->auxmap, &soe, sizeof(struct Struct_Obj_Entry));
 
     /* Hook the Struct_Object_Entry into the real linked list */
-    realsoe = read_data(hijack, hijack->soe, sizeof(struct Struct_Obj_Entry));
+    realsoe = read_data(hijack, (unsigned long)(hijack->soe->next), sizeof(struct Struct_Obj_Entry));
     do {
         if ((realsoe)) {
+            prevsoe = realsoe;
+
+            if (!(realsoe->next))
+                break;
+
             if ((prevsoe))
                 free(prevsoe);
 
-            prevsoe = realsoe;
-            realsoe = read_data(hijack, realsoe->next, sizeof(struct Struct_Obj_Entry));
+            realsoe = read_data(hijack, (unsigned long)(realsoe->next), sizeof(struct Struct_Obj_Entry));
 
-            if (!(realsoe))
+            if (!(realsoe)) {
+                if ((prevsoe))
+                    fprintf(stderr, "[-] There was an error reading the SOE from 0x%016lx\n", (unsigned long)(prevsoe->next));
                 break;
+            }
         } else {
+            fprintf(stderr, "[-] Could not read the SOE\n");
             break;
         }
     } while(realsoe->next != NULL);
 
-    if (!(realsoe))
+    if (!(realsoe) || !(prevsoe)) {
+        fprintf(stderr, "[-] SOE is null: real: 0x%016lx prev: 0x%016lx\n", (unsigned long)realsoe, (unsigned long)prevsoe);
         return;
+    }
 
     realsoe->next = (struct Struct_Obj_Entry *)(aux->auxmap);
     WriteData(hijack, prevsoe->next, realsoe, sizeof(struct Struct_Obj_Entry));
