@@ -76,6 +76,8 @@ struct rtld_aux {
     struct rtld_loadable *loadables;
 };
 
+void append_soe(HIJACK *, unsigned long, struct Struct_Obj_Entry *);
+
 void rtld_add_loadable(HIJACK *hijack, struct rtld_aux *aux, ElfW(Phdr) *phdr) {
     struct rtld_loadable *loadable;
 
@@ -145,7 +147,7 @@ void rtld_create_maps(HIJACK *hijack, struct rtld_aux *aux) {
     struct rtld_loadable *first_loadable, *last_loadable, *loadable;
     int err;
     char *bss;
-    unsigned long bss_vaddr, bss_addr, bss_page, bss_vlimit, nclear;
+    unsigned long bss_vaddr, bss_addr, bss_page, nclear;
 
     /* Grab first and last loadable PHDRs */
     first_loadable = aux->loadables;
@@ -203,7 +205,7 @@ void rtld_create_maps(HIJACK *hijack, struct rtld_aux *aux) {
 
 void rtld_hook_into_rtld(HIJACK *hijack, struct rtld_aux *aux)
 {
-    struct Struct_Obj_Entry soe, *realsoe, *prevsoe=NULL;
+    struct Struct_Obj_Entry soe;
     
     memset(&soe, 0x00, sizeof(struct Struct_Obj_Entry));
 
@@ -240,17 +242,23 @@ void rtld_hook_into_rtld(HIJACK *hijack, struct rtld_aux *aux)
     aux->auxmap = MapMemory(hijack, (unsigned long)NULL, getpagesize(), PROT_READ | PROT_WRITE | PROT_EXEC, MAP_ANON | MAP_SHARED);
     WriteData(hijack, aux->auxmap, &soe, sizeof(struct Struct_Obj_Entry));
 
+    append_soe(hijack, aux->auxmap, &soe);
+}
+
+void append_soe(HIJACK *hijack, unsigned long addr, struct Struct_Obj_Entry *soe) {
+    struct Struct_Obj_Entry *prevsoe=NULL, *realsoe;
+
     /* Hook the Struct_Object_Entry into the real linked list */
     realsoe = read_data(hijack, (unsigned long)(hijack->soe->next), sizeof(struct Struct_Obj_Entry));
     do {
         if ((realsoe)) {
+            if ((prevsoe))
+                free(prevsoe);
+
             prevsoe = realsoe;
 
             if (!(realsoe->next))
                 break;
-
-            if ((prevsoe))
-                free(prevsoe);
 
             realsoe = read_data(hijack, (unsigned long)(realsoe->next), sizeof(struct Struct_Obj_Entry));
 
@@ -270,11 +278,13 @@ void rtld_hook_into_rtld(HIJACK *hijack, struct rtld_aux *aux)
         return;
     }
 
-    realsoe->next = (struct Struct_Obj_Entry *)(aux->auxmap);
+    realsoe->next = (struct Struct_Obj_Entry *)addr;
     WriteData(hijack, prevsoe->next, realsoe, sizeof(struct Struct_Obj_Entry));
 
     /* Clean up */
-    free(prevsoe);
+    if (prevsoe != realsoe)
+        free(prevsoe);
+
     free(realsoe);
 }
 
