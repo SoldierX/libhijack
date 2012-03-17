@@ -76,7 +76,7 @@ struct rtld_aux {
     struct rtld_loadable *loadables;
 };
 
-void append_soe(HIJACK *, unsigned long, struct Struct_Obj_Entry *);
+int append_soe(HIJACK *, unsigned long, struct Struct_Obj_Entry *);
 
 void rtld_add_loadable(HIJACK *hijack, struct rtld_aux *aux, ElfW(Phdr) *phdr) {
     struct rtld_loadable *loadable;
@@ -143,7 +143,7 @@ int rtld_load_headers(HIJACK *hijack, struct rtld_aux *aux) {
  * Actually load the shared object
  * Logic taken from freebsd/9-stable/libexec/rtld-elf/map_object.c
  */
-void rtld_create_maps(HIJACK *hijack, struct rtld_aux *aux) {
+int rtld_create_maps(HIJACK *hijack, struct rtld_aux *aux) {
     struct rtld_loadable *first_loadable, *last_loadable, *loadable;
     int err;
     char *bss;
@@ -186,7 +186,7 @@ void rtld_create_maps(HIJACK *hijack, struct rtld_aux *aux) {
             if (nclear > 0) {
                 bss = _hijack_malloc(hijack, nclear);
                 if (!(bss))
-                    return;
+                    return -1;
                 err = WriteData(hijack, bss_addr, bss, nclear);
                 free(bss);
 
@@ -201,9 +201,11 @@ void rtld_create_maps(HIJACK *hijack, struct rtld_aux *aux) {
             }
         }
     }
+
+    return 0;
 }
 
-void rtld_hook_into_rtld(HIJACK *hijack, struct rtld_aux *aux)
+int rtld_hook_into_rtld(HIJACK *hijack, struct rtld_aux *aux)
 {
     struct Struct_Obj_Entry soe;
     
@@ -224,7 +226,7 @@ void rtld_hook_into_rtld(HIJACK *hijack, struct rtld_aux *aux)
     } else {
         soe.phdr = _hijack_malloc(hijack, soe.phsize);
         if (!(soe.phdr))
-            return;
+            return -1;
 
         memcpy(soe.phdr, aux->ehdr.ptr + aux->ehdr.ehdr->e_phoff, soe.phsize);
         soe.phdr_alloc = true;
@@ -242,15 +244,17 @@ void rtld_hook_into_rtld(HIJACK *hijack, struct rtld_aux *aux)
     aux->auxmap = MapMemory(hijack, (unsigned long)NULL, getpagesize(), PROT_READ | PROT_WRITE | PROT_EXEC, MAP_ANON | MAP_SHARED);
     WriteData(hijack, aux->auxmap, &soe, sizeof(struct Struct_Obj_Entry));
     if (soe.phdr_alloc) {
-        WriteData(hijack, aux->auxmap + sizeof(struct Struct_Obj_Entry), soe.phdr, soe.phsize);
+        if (WriteData(hijack, aux->auxmap + sizeof(struct Struct_Obj_Entry), soe.phdr, soe.phsize) != ERROR_NONE)
+            return -1;
+
         free(soe.phdr);
         soe.phdr = aux->auxmap + sizeof(struct Struct_Obj_Entry);
     }
 
-    append_soe(hijack, aux->auxmap, &soe);
+    return append_soe(hijack, aux->auxmap, &soe);
 }
 
-void append_soe(HIJACK *hijack, unsigned long addr, struct Struct_Obj_Entry *soe) {
+int append_soe(HIJACK *hijack, unsigned long addr, struct Struct_Obj_Entry *soe) {
     struct Struct_Obj_Entry *prevsoe=NULL, *realsoe;
 
     /* Hook the Struct_Object_Entry into the real linked list */
@@ -280,17 +284,20 @@ void append_soe(HIJACK *hijack, unsigned long addr, struct Struct_Obj_Entry *soe
 
     if (!(realsoe) || !(prevsoe)) {
         fprintf(stderr, "[-] SOE is null: real: 0x%016lx prev: 0x%016lx\n", (unsigned long)realsoe, (unsigned long)prevsoe);
-        return;
+        return -1;
     }
 
     realsoe->next = (struct Struct_Obj_Entry *)addr;
-    WriteData(hijack, prevsoe->next, realsoe, sizeof(struct Struct_Obj_Entry));
+    if (WriteData(hijack, prevsoe->next, realsoe, sizeof(struct Struct_Obj_Entry)) != ERROR_NONE)
+        return -1;
 
     /* Clean up */
     if (prevsoe != realsoe)
         free(prevsoe);
 
     free(realsoe);
+
+    return 0;
 }
 
 EXPORTED_SYM int load_library(HIJACK *hijack, char *path)
@@ -308,9 +315,11 @@ EXPORTED_SYM int load_library(HIJACK *hijack, char *path)
     if (rtld_load_headers(hijack, &aux) == -1)
         return -1;
 
-    rtld_create_maps(hijack, &aux);
+    if (rtld_create_maps(hijack, &aux) == -1)
+        return -1;
 
-    rtld_hook_into_rtld(hijack, &aux);
+    if (rtld_hook_into_rtld(hijack, &aux) == -1)
+        return -1;
 
     return 0;
 }

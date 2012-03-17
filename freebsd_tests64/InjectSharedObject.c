@@ -47,7 +47,10 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    LoadLibrary(hijack, argv[2]);
+    if (LoadLibrary(hijack, argv[2]) != ERROR_NONE) {
+        fprintf(stderr, "[-] Couldn't load lib!\n");
+        exit(EXIT_FAILURE);
+    }
 	
 	Detach(hijack);
 	
