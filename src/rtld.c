@@ -241,6 +241,11 @@ void rtld_hook_into_rtld(HIJACK *hijack, struct rtld_aux *aux)
     /* Create auxiliary mapping and write the Struct_Obj_Entry */
     aux->auxmap = MapMemory(hijack, (unsigned long)NULL, getpagesize(), PROT_READ | PROT_WRITE | PROT_EXEC, MAP_ANON | MAP_SHARED);
     WriteData(hijack, aux->auxmap, &soe, sizeof(struct Struct_Obj_Entry));
+    if (soe.phdr_alloc) {
+        WriteData(hijack, aux->auxmap + sizeof(struct Struct_Obj_Entry), soe.phdr, soe.phsize);
+        free(soe.phdr);
+        soe.phdr = aux->auxmap + sizeof(struct Struct_Obj_Entry);
+    }
 
     append_soe(hijack, aux->auxmap, &soe);
 }
