@@ -40,6 +40,9 @@ struct rtld_aux {
     int fd;
     void *lmap; /* short for "local map" */
     struct stat sb;
+
+    unsigned long obj_tail_addr;
+    unsigned long last_soe_addr;
     
     union {
         void *ptr;
@@ -254,6 +257,53 @@ int rtld_hook_into_rtld(HIJACK *hijack, struct rtld_aux *aux)
     return append_soe(hijack, aux->auxmap, &soe);
 }
 
+unsigned long find_last_soe_addr(HIJACK *hijack) {
+    struct Struct_Obj_Entry *soe, *prevsoe=NULL;
+    unsigned long ret=(unsigned long)NULL, searchaddr=(unsigned long)NULL;
+    unsigned long addr, maxaddr;
+    char *libname;
+
+    soe = hijack->soe;
+    if (soe->rtld) {
+        ReadData(hijack, &searchaddr, hijack->pltgot + sizeof(unsigned long), sizeof(unsigned long));
+    } else {
+        do {
+            libname = read_str(hijack, (unsigned long)(soe->path));
+            if ((libname)) {
+                fprintf(stderr, "[*] libname is %s\n", libname);
+                if (strstr(libname, "ld-elf"))
+                    break;
+            }
+
+            prevsoe = soe;
+            soe = read_data(hijack, (unsigned long)(soe->next), sizeof(struct Struct_Obj_Entry));
+        } while ((soe));
+
+        if (!(soe)) {
+            fprintf(stderr, "[-] no soe!?!\n");
+            return (unsigned long)NULL;
+        }
+
+        searchaddr = (unsigned long)(prevsoe->next);
+    }
+
+    if (!searchaddr) {
+        fprintf(stderr, "[-] no searchaddr!\n");
+        return (unsigned long)NULL;
+    }
+
+    /* Yes, I'm resorting to brute forcing... */
+    fprintf(stderr, "[*] gonna search %u bytes at 0x%016lx\n", maxaddr, addr);
+    maxaddr = ((unsigned long)(soe->mapbase)) + soe->mapsize;
+    for (addr = (unsigned long)(soe->mapbase); addr < maxaddr; addr++) {
+        ReadData(hijack, addr, &ret, sizeof(unsigned long));
+        if (ret == searchaddr)
+            return ret;
+    }
+
+    return (unsigned long)NULL;
+}
+
 int append_soe(HIJACK *hijack, unsigned long addr, struct Struct_Obj_Entry *soe) {
     struct Struct_Obj_Entry *prevsoe=NULL, *realsoe;
 
@@ -303,6 +353,7 @@ int append_soe(HIJACK *hijack, unsigned long addr, struct Struct_Obj_Entry *soe)
 EXPORTED_SYM int load_library(HIJACK *hijack, char *path)
 {
     struct rtld_aux aux;
+    unsigned long addr;
     memset(&aux, 0x00, sizeof(struct rtld_aux));
 
     aux.path = strdup(path);
@@ -320,6 +371,9 @@ EXPORTED_SYM int load_library(HIJACK *hijack, char *path)
 
     if (rtld_hook_into_rtld(hijack, &aux) == -1)
         return -1;
+
+    addr = find_last_soe_addr(hijack);
+    fprintf(stderr, "[*] find_last_soe_addr returned 0x%016lx\n", addr);
 
     return 0;
 }
