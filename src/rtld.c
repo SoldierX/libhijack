@@ -215,6 +215,9 @@ int rtld_hook_into_rtld(HIJACK *hijack, struct rtld_aux *aux)
     memset(&soe, 0x00, sizeof(struct Struct_Obj_Entry));
 
     /* Fill in a new Struct_Obj_Entry struct */
+    soe.dl_refcount++;
+
+
     soe.phsize = aux->ehdr.ehdr->e_phnum * sizeof(ElfW(Phdr));
     soe.mapbase = aux->mapping;
     soe.mapsize = aux->mapsize;
@@ -252,39 +255,23 @@ int rtld_hook_into_rtld(HIJACK *hijack, struct rtld_aux *aux)
 
         free(soe.phdr);
         soe.phdr = aux->auxmap + sizeof(struct Struct_Obj_Entry);
+        soe.phdr_alloc = false;
     }
 
     return append_soe(hijack, aux->auxmap, &soe);
 }
 
 unsigned long find_last_soe_addr(HIJACK *hijack) {
-    struct Struct_Obj_Entry *soe, *prevsoe=NULL;
+    struct Struct_Obj_Entry *soe;
     unsigned long ret=(unsigned long)NULL, searchaddr=(unsigned long)NULL;
     unsigned long addr, maxaddr;
     char *libname;
 
     soe = hijack->soe;
-    if (soe->rtld) {
-        ReadData(hijack, &searchaddr, hijack->pltgot + sizeof(unsigned long), sizeof(unsigned long));
-    } else {
-        do {
-            libname = read_str(hijack, (unsigned long)(soe->path));
-            if ((libname)) {
-                fprintf(stderr, "[*] libname is %s\n", libname);
-                if (strstr(libname, "ld-elf"))
-                    break;
-            }
-
-            prevsoe = soe;
-            soe = read_data(hijack, (unsigned long)(soe->next), sizeof(struct Struct_Obj_Entry));
-        } while ((soe));
-
-        if (!(soe)) {
-            fprintf(stderr, "[-] no soe!?!\n");
-            return (unsigned long)NULL;
-        }
-
-        searchaddr = (unsigned long)(prevsoe->next);
+    ReadData(hijack, hijack->pltgot + sizeof(unsigned long), &searchaddr, sizeof(unsigned long));
+    while ((soe->next)) {
+        searchaddr = soe->next;
+        soe = read_data(hijack, (unsigned long)(soe->next), sizeof(struct Struct_Obj_Entry));
     }
 
     if (!searchaddr) {
@@ -292,13 +279,14 @@ unsigned long find_last_soe_addr(HIJACK *hijack) {
         return (unsigned long)NULL;
     }
 
-    /* Yes, I'm resorting to brute forcing... */
-    fprintf(stderr, "[*] gonna search %u bytes at 0x%016lx\n", maxaddr, addr);
-    maxaddr = ((unsigned long)(soe->mapbase)) + soe->mapsize;
-    for (addr = (unsigned long)(soe->mapbase); addr < maxaddr; addr++) {
+    /* Yes, I'm resorting to brute forcing and using hardcoded addresses... */
+    maxaddr = ((unsigned long)(0x80083a000));
+    fprintf(stderr, "[*] gonna search %u bytes at 0x%016lx\n", maxaddr - 0x800600000, 0x800600000);
+    fprintf(stderr, "[*] Searching for 0x%016lx\n", searchaddr);
+    for (addr = (unsigned long)(0x800600000); addr < maxaddr; addr++) {
         ReadData(hijack, addr, &ret, sizeof(unsigned long));
         if (ret == searchaddr)
-            return ret;
+            return addr;
     }
 
     return (unsigned long)NULL;
@@ -306,46 +294,16 @@ unsigned long find_last_soe_addr(HIJACK *hijack) {
 
 int append_soe(HIJACK *hijack, unsigned long addr, struct Struct_Obj_Entry *soe) {
     struct Struct_Obj_Entry *prevsoe=NULL, *realsoe;
+    unsigned long soe_addr;
 
     /* Hook the Struct_Object_Entry into the real linked list */
-    realsoe = read_data(hijack, (unsigned long)(hijack->soe->next), sizeof(struct Struct_Obj_Entry));
-    do {
-        if ((realsoe)) {
-            if ((prevsoe))
-                free(prevsoe);
+    soe->next = hijack->soe->next;
+    hijack->soe->next = addr;
+    soe->phdr = 0x1234;
+    ReadData(hijack, hijack->pltgot + sizeof(unsigned long), &soe_addr, sizeof(unsigned long));
 
-            prevsoe = realsoe;
-
-            if (!(realsoe->next))
-                break;
-
-            realsoe = read_data(hijack, (unsigned long)(realsoe->next), sizeof(struct Struct_Obj_Entry));
-
-            if (!(realsoe)) {
-                if ((prevsoe))
-                    fprintf(stderr, "[-] There was an error reading the SOE from 0x%016lx\n", (unsigned long)(prevsoe->next));
-                break;
-            }
-        } else {
-            fprintf(stderr, "[-] Could not read the SOE\n");
-            break;
-        }
-    } while(realsoe->next != NULL);
-
-    if (!(realsoe) || !(prevsoe)) {
-        fprintf(stderr, "[-] SOE is null: real: 0x%016lx prev: 0x%016lx\n", (unsigned long)realsoe, (unsigned long)prevsoe);
-        return -1;
-    }
-
-    realsoe->next = (struct Struct_Obj_Entry *)addr;
-    if (WriteData(hijack, prevsoe->next, realsoe, sizeof(struct Struct_Obj_Entry)) != ERROR_NONE)
-        return -1;
-
-    /* Clean up */
-    if (prevsoe != realsoe)
-        free(prevsoe);
-
-    free(realsoe);
+    WriteData(hijack, addr, soe, sizeof(struct Struct_Obj_Entry));
+    WriteData(hijack, soe_addr, hijack->soe, sizeof(struct Struct_Obj_Entry));
 
     return 0;
 }
@@ -373,7 +331,7 @@ EXPORTED_SYM int load_library(HIJACK *hijack, char *path)
         return -1;
 
     addr = find_last_soe_addr(hijack);
-    fprintf(stderr, "[*] find_last_soe_addr returned 0x%016lx\n", addr);
+    fprintf(stderr, "[*] Found at addr 0x%016lx\n", addr);
 
     return 0;
 }
