@@ -370,6 +370,7 @@ unsigned long find_rtld_soe(HIJACK *hijack)
 EXPORTED_SYM int load_library(HIJACK *hijack, char *path)
 {
     struct rtld_aux aux;
+    unsigned long addr;
     memset(&aux, 0x00, sizeof(struct rtld_aux));
 
     addr = find_rtld_soe(hijack);
