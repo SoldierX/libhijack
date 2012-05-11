@@ -280,7 +280,7 @@ unsigned long find_last_soe_addr(HIJACK *hijack) {
     }
 
     /* Yes, I'm resorting to brute forcing and using hardcoded addresses... */
-    maxaddr = ((unsigned long)(0x80083a000));
+    maxaddr = ((unsigned long)(0x80084a000));
     fprintf(stderr, "[*] gonna search %u bytes at 0x%016lx\n", maxaddr - 0x800600000, 0x800600000);
     fprintf(stderr, "[*] Searching for 0x%016lx\n", searchaddr);
     for (addr = (unsigned long)(0x800600000); addr < maxaddr; addr++) {
@@ -308,11 +308,57 @@ int append_soe(HIJACK *hijack, unsigned long addr, struct Struct_Obj_Entry *soe)
     return 0;
 }
 
+unsigned long find_rtld_soe(HIJACK *hijack)
+{
+    struct link_map *l;
+    unsigned long addr=NULL, daddr;
+    ElfW(Dyn) *dyn;
+    ElfW(Sym) *sym;
+    unsigned long strtab;
+    char *symname;
+
+    l = &(hijack->soe->linkmap);
+
+    while ((l->l_next))
+        l = read_data(hijack, l->l_next, sizeof(struct link_map));
+
+    daddr = l->l_ld;
+    dyn = (ElfW(Dyn) *)read_data(hijack, l->l_ld, sizeof(ElfW(Dyn)));
+    do {
+        switch (dyn->d_tag) {
+            case DT_SYMTAB:
+                addr = (unsigned long)(dyn->d_un.d_ptr) + (unsigned long)(l->l_addr);
+                break;
+            case DT_STRTAB:
+                strtab = (unsigned long)(dyn->d_un.d_ptr);
+                break;
+        }
+
+        daddr += sizeof(ElfW(Dyn));
+        dyn = (ElfW(Dyn) *)read_data(hijack, daddr, sizeof(ElfW(Dyn)));
+    } while ((dyn->d_tag));
+
+    addr += sizeof(ElfW(Sym));
+    do {
+        sym = read_data(hijack, addr, sizeof(ElfW(Sym)));
+        symname = read_str(hijack, strtab + sym->st_name);
+        fprintf(stderr, "[*] %s is at 0x%016lx\n", ((symname) ? symname : "(null)"), l->l_addr + sym->st_value);
+        fflush(stderr);
+        addr += sizeof(ElfW(Sym));
+    } while (sym->st_info != SHT_NULL);
+    
+    return 0;
+}
+
 EXPORTED_SYM int load_library(HIJACK *hijack, char *path)
 {
     struct rtld_aux aux;
     unsigned long addr;
     memset(&aux, 0x00, sizeof(struct rtld_aux));
+
+    addr = find_rtld_soe(hijack);
+    fprintf(stderr, "[*] addr is 0x%016lx\n", addr);
+    return 0;
 
     aux.path = strdup(path);
     stat(aux.path, &(aux.sb));
@@ -329,9 +375,6 @@ EXPORTED_SYM int load_library(HIJACK *hijack, char *path)
 
     if (rtld_hook_into_rtld(hijack, &aux) == -1)
         return -1;
-
-    addr = find_last_soe_addr(hijack);
-    fprintf(stderr, "[*] Found at addr 0x%016lx\n", addr);
 
     return 0;
 }
