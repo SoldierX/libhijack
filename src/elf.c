@@ -243,7 +243,6 @@ void parse_linkmap(HIJACK *hijack, struct link_map *linkmap, linkmap_callback ca
     
     symaddr += sizeof(ElfW(Sym));
     
-    #if defined(i686)
         do {
             if ((libsym))
                 free(libsym);
@@ -254,7 +253,7 @@ void parse_linkmap(HIJACK *hijack, struct link_map *linkmap, linkmap_callback ca
                 goto notfound;
             }
             
-            if (ELF32_ST_TYPE(libsym->st_info) != STT_FUNC) {
+            if (ELF_ST_TYPE(libsym->st_info) != STT_FUNC) {
                 symaddr += sizeof(ElfW(Sym));
                 continue;
             }
@@ -272,38 +271,7 @@ void parse_linkmap(HIJACK *hijack, struct link_map *linkmap, linkmap_callback ca
             
             symaddr += sizeof(ElfW(Sym));
         } while (i++ < numsyms);
-    #elif defined(x86_64)
-        do {
-            if ((libsym))
-                free(libsym);
-
-            libsym = (ElfW(Sym) *)read_data(hijack, (unsigned long)symaddr, sizeof(ElfW(Sym)));
-            if (!(libsym))
-            {
-                err = GetErrorCode(hijack);
-                goto notfound;
-            }
-            
-            if (ELF64_ST_TYPE(libsym->st_info) != STT_FUNC)
-            {
-                symaddr += sizeof(ElfW(Sym));
-                continue;
-            }
-            
-            name = read_str(hijack, (unsigned long)(libstrtab + libsym->st_name));
-            if ((name)) {
-                if (callback(hijack, linkmap, name, ((unsigned long)(linkmap->l_addr) + libsym->st_value), (size_t)(libsym->st_size)) != CONTPROC) {
-                    free(name);
-                    break;
-                }
-
-                free(name);
-            }
-            
-            symaddr += sizeof(ElfW(Sym));
-        } while (i++ < numsyms);
-    #endif
-    
+   
 notfound:
     SetError(hijack, err);
 }

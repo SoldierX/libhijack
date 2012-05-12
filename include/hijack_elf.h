@@ -18,17 +18,20 @@
         #define BASEADDR 0x00400000
         #define SYSCALLSEARCH "\x0f\x05"
         #define MMAPSYSCALL 477
+        #define ELF_ST_TYPE ELF64_ST_TYPE
     #endif
 #elif defined(Linux)
     #if defined(i686)
     	#define BASEADDR 0x08048000
     	#define SYSCALLSEARCH "\xcd\x80"
     	#define MMAPSYSCALL 90
+        #define ELF_ST_TYPE ELF32_ST_TYPE
     #elif defined(x86_64)
     	#define BASEADDR 0x00400000
     	#define SYSCALLSEARCH "\x0f\x05"
     	/* #define SYSCALLSEARCH "\xcd\x80" */
     	#define MMAPSYSCALL 9
+        #define ELF_ST_TYPE ELF64_ST_TYPE
     #else
     	#error "Architecture not supported!"
     #endif

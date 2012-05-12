@@ -130,6 +130,12 @@ RTLD_SYM *resolv_rtld_sym(HIJACK *hijack, char *name)
             sym->p.ulp = (unsigned long)(l->l_addr + symtab[i].st_value);
             sym->sz = symtab[i].st_size;
 
+            switch (ELF_ST_TYPE(symtab[i].st_info)) {
+                case STT_FUNC:
+                    sym->type = FUNC;
+                    break;
+            }
+
             break;
         }
     }
