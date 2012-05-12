@@ -325,46 +325,32 @@ int append_soe(HIJACK *hijack, unsigned long addr, struct Struct_Obj_Entry *soe)
     return 0;
 }
 
-unsigned long find_rtld_soe(HIJACK *hijack)
+/*
+ * Find the RTLD's linkmap.
+ *
+ * We need it on both Linux and FreeBSD so that we can resolve RTLD functions
+ * and piggyback off the native RTLD and eventually patch into it.
+ */
+unsigned long find_rtld_linkmap(HIJACK *hijack)
 {
-    struct link_map *l;
-    unsigned long addr=NULL, daddr;
-    ElfW(Dyn) *dyn;
-    ElfW(Sym) *sym;
-    unsigned long strtab;
-    char *symname;
+    struct link_map *l, *p=NULL;
+    unsigned long addr=NULL;
 
     l = &(hijack->soe->linkmap);
 
-    while ((l->l_next))
+    while ((l->l_next)) {
+        if ((p) && (p) != &(hijack->soe->linkmap))
+            free(p);
+
+        p = l;
         l = read_data(hijack, l->l_next, sizeof(struct link_map));
+    }
 
-    daddr = l->l_ld;
-    dyn = (ElfW(Dyn) *)read_data(hijack, l->l_ld, sizeof(ElfW(Dyn)));
-    do {
-        switch (dyn->d_tag) {
-            case DT_SYMTAB:
-                addr = (unsigned long)(dyn->d_un.d_ptr) + (unsigned long)(l->l_addr);
-                break;
-            case DT_STRTAB:
-                strtab = (unsigned long)(dyn->d_un.d_ptr);
-                break;
-        }
+    addr = (unsigned long)(p->l_next);
+    free(p);
+    free(l);
 
-        daddr += sizeof(ElfW(Dyn));
-        dyn = (ElfW(Dyn) *)read_data(hijack, daddr, sizeof(ElfW(Dyn)));
-    } while ((dyn->d_tag));
-
-    addr += sizeof(ElfW(Sym));
-    do {
-        sym = read_data(hijack, addr, sizeof(ElfW(Sym)));
-        symname = read_str(hijack, strtab + sym->st_name);
-        fprintf(stderr, "[*] %s is at 0x%016lx\n", ((symname) ? symname : "(null)"), l->l_addr + sym->st_value);
-        fflush(stderr);
-        addr += sizeof(ElfW(Sym));
-    } while (sym->st_info != SHT_NULL);
-    
-    return 0;
+    return addr;
 }
 
 EXPORTED_SYM int load_library(HIJACK *hijack, char *path)
@@ -373,7 +359,7 @@ EXPORTED_SYM int load_library(HIJACK *hijack, char *path)
     unsigned long addr;
     memset(&aux, 0x00, sizeof(struct rtld_aux));
 
-    addr = find_rtld_soe(hijack);
+    addr = find_rtld_linkmap(hijack);
     fprintf(stderr, "[*] addr is 0x%016lx\n", addr);
     return 0;
 
