@@ -19,6 +19,7 @@
 #include "hijack_ptrace.h"
 #include "map.h"
 #include "hijack_elf.h"
+#include "os_resolv.h"
 
 struct rtld_loadable {
     union {
@@ -325,42 +326,16 @@ int append_soe(HIJACK *hijack, unsigned long addr, struct Struct_Obj_Entry *soe)
     return 0;
 }
 
-/*
- * Find the RTLD's linkmap.
- *
- * We need it on both Linux and FreeBSD so that we can resolve RTLD functions
- * and piggyback off the native RTLD and eventually patch into it.
- */
-unsigned long find_rtld_linkmap(HIJACK *hijack)
-{
-    struct link_map *l, *p=NULL;
-    unsigned long addr=NULL;
-
-    l = &(hijack->soe->linkmap);
-
-    while ((l->l_next)) {
-        if ((p) && (p) != &(hijack->soe->linkmap))
-            free(p);
-
-        p = l;
-        l = read_data(hijack, l->l_next, sizeof(struct link_map));
-    }
-
-    addr = (unsigned long)(p->l_next);
-    free(p);
-    free(l);
-
-    return addr;
-}
-
 EXPORTED_SYM int load_library(HIJACK *hijack, char *path)
 {
     struct rtld_aux aux;
     unsigned long addr;
+    RTLD_SYM *sym;
+
     memset(&aux, 0x00, sizeof(struct rtld_aux));
 
-    addr = find_rtld_linkmap(hijack);
-    fprintf(stderr, "[*] addr is 0x%016lx\n", addr);
+    sym = resolv_rtld_sym(hijack, "dlsym");
+    fprintf(stderr, "[*] dlsym is at 0x%016lx (%u)\n", sym->p.ulp, sym->sz);
     return 0;
 
     aux.path = strdup(path);
