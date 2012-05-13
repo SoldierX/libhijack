@@ -8,6 +8,12 @@
 
 #include <dlfcn.h>
 
+int testvar1;
+char *testvar2;
+unsigned long testvar3[16];
+char *testvar4="asdf";
+char testvar5[] = "qwer";
+
 int main(int argc, char *argv[])
 {
     void *sym;

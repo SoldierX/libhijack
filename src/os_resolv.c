@@ -25,6 +25,8 @@
  *
  * We need it on both Linux and FreeBSD so that we can resolve RTLD functions
  * and piggyback off the native RTLD and eventually patch into it.
+ *
+ * XXX This function probably ought to be in elf.c, not in os_resolv.c
  */
 unsigned long find_rtld_linkmap(HIJACK *hijack)
 {
@@ -48,6 +50,19 @@ unsigned long find_rtld_linkmap(HIJACK *hijack)
     return addr;
 }
 
+/*
+ * Resolve exported dynamically-loaded symbols from the RTLD.
+ * Even though the RTLD relocates itself after it's loaded,
+ * we have its linkmap, which points to its relocated base
+ * mapping. The symbols in the relocated RTLD are in the same
+ * relative location.
+ *
+ * This function needs to be made more performant. It opens
+ * the RTLD in memory, mmaps it, and grabs the dynamic symbol
+ * table entries. The returned object carries the fully
+ * resolved address based on the base address from the linkmap
+ * added with the offset from the symbol table.
+ */
 RTLD_SYM *resolv_rtld_sym(HIJACK *hijack, char *name)
 {
     RTLD_SYM *sym=NULL;
@@ -91,6 +106,7 @@ RTLD_SYM *resolv_rtld_sym(HIJACK *hijack, char *name)
     buf = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
     if (buf == MAP_FAILED) {
         fprintf(stderr, "[-] Cannot mmap rtld into tmp mapping\n");
+        close(fd);
         return NULL;
     }
 
@@ -134,12 +150,18 @@ RTLD_SYM *resolv_rtld_sym(HIJACK *hijack, char *name)
                 case STT_FUNC:
                     sym->type = FUNC;
                     break;
+                case STT_OBJECT:
+                    sym->type = VAR;
+                    break;
             }
 
+            /* We shouldn't see multiple symbols that share the same name */
             break;
         }
     }
 
+    /* If no match, sym will be NULL  */
     munmap(buf, sb.st_size);
+    close(fd);
     return sym;
 }
