@@ -21,7 +21,7 @@
 #include "os_resolv.h"
 
 /*
- * Find the RTLD's linkmap.
+ * Find the RTLD's linkmap. On FreeBSD, the RTLD's linkmap is the last entry.
  *
  * We need it on both Linux and FreeBSD so that we can resolve RTLD functions
  * and piggyback off the native RTLD and eventually patch into it.
@@ -33,6 +33,9 @@ unsigned long find_rtld_linkmap(HIJACK *hijack)
     struct link_map *l, *p=NULL;
     unsigned long addr=NULL;
 
+    if (!(hijack) || !(hijack->soe))
+        return (unsigned long)NULL;
+
     l = &(hijack->soe->linkmap);
 
     while ((l->l_next)) {
@@ -41,6 +44,8 @@ unsigned long find_rtld_linkmap(HIJACK *hijack)
 
         p = l;
         l = read_data(hijack, l->l_next, sizeof(struct link_map));
+        if (!(l))
+            return (unsigned long)NULL;
     }
 
     addr = (unsigned long)(p->l_next);
@@ -85,27 +90,20 @@ RTLD_SYM *resolv_rtld_sym(HIJACK *hijack, char *name)
         return NULL;
 
     l = read_data(hijack, find_rtld_linkmap(hijack), sizeof(struct link_map));
-    if (!(l)) {
-        fprintf(stderr, "[-] Cannot find rtld's linkmap\n");
+    if (!(l))
         return NULL;
-    }
 
     path = read_str(hijack, l->l_name);
-    if (!(path)) {
-        fprintf(stderr, "[-] Cannot read rtld's path\n");
+    if (!(path))
         return NULL;
-    }
 
     stat(path, &sb);
     fd = open(path, O_RDONLY);
-    if (fd < 0) {
-        fprintf(stderr, "[-] Cannot open rtld file\n");
+    if (fd < 0)
         return NULL;
-    }
 
     buf = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
     if (buf == MAP_FAILED) {
-        fprintf(stderr, "[-] Cannot mmap rtld into tmp mapping\n");
         close(fd);
         return NULL;
     }
@@ -137,6 +135,10 @@ RTLD_SYM *resolv_rtld_sym(HIJACK *hijack, char *name)
                 break;
         }
     }
+
+    /* XXX This should _never_ happen with the RTLD */
+    if (!(dyn) || !(strtab))
+        return NULL;
 
     for (i=0; i < symsz; i++) {
         if (!strcmp(name, strtab+symtab[i].st_name)) {

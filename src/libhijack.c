@@ -45,8 +45,7 @@ EXPORTED_SYM int GetErrorCode(HIJACK *hijack)
  */
 EXPORTED_SYM const char *GetErrorString(HIJACK *hijack)
 {
-	switch (hijack->lastErrorCode)
-	{
+	switch (hijack->lastErrorCode) {
 		case ERROR_NONE:
 			return "No Error";
 		case ERROR_ATTACHED:
@@ -124,8 +123,7 @@ EXPORTED_SYM int ToggleFlag(HIJACK *hijack, unsigned int flag)
  */
 EXPORTED_SYM void *GetValue(HIJACK *hijack, int vkey)
 {
-	switch (vkey)
-	{
+	switch (vkey) {
 		case V_BASEADDR:
 			return &(hijack->baseaddr);
 		default:
@@ -142,8 +140,7 @@ EXPORTED_SYM void *GetValue(HIJACK *hijack, int vkey)
  */
 EXPORTED_SYM int SetValue(HIJACK *hijack, int vkey, void *value)
 {
-	switch (vkey)
-	{
+	switch (vkey) {
 		case V_BASEADDR:
 			memcpy(&(hijack->baseaddr), value, sizeof(unsigned long));
 			return SetError(hijack, ERROR_NONE);
@@ -202,8 +199,7 @@ EXPORTED_SYM int Attach(HIJACK *hijack)
 	if (ptrace(PTRACE_ATTACH, hijack->pid, NULL, NULL) < 0)
 		return SetError(hijack, ERROR_SYSCALL);
 	
-	do
-	{
+	do {
 		waitpid(hijack->pid, &status, 0);
 	} while (!WIFSTOPPED(status));
 	
@@ -259,8 +255,7 @@ EXPORTED_SYM int LocateSystemCall(HIJACK *hijack)
     } while ((soe = read_data(hijack, soe->next, sizeof(struct Struct_Obj_Entry))) != NULL);
 #else
 	map = hijack->linkhead;
-	do
-	{
+	do {
 		parse_linkmap(hijack, map, syscall_callback);
 		if (hijack->syscalladdr)
 			break;
@@ -361,8 +356,7 @@ EXPORTED_SYM REGS *GetRegs(HIJACK *hijack)
 {
 	REGS *ret;
 	
-	if (!IsAttached(hijack))
-	{
+	if (!IsAttached(hijack)) {
 		SetError(hijack, ERROR_NOTATTACHED);
 		return NULL;
 	}

@@ -77,8 +77,7 @@ CBRESULT func_found(HIJACK *hijack, void *linkmap, char *name, unsigned long vad
 	if (!(linkmap))
 		return CONTPROC;
 	
-	if (hijack->funcs)
-	{
+	if (hijack->funcs) {
 		f = hijack->funcs;
 		while (f->next != NULL)
 			f = f->next;
@@ -86,10 +85,9 @@ CBRESULT func_found(HIJACK *hijack, void *linkmap, char *name, unsigned long vad
 		f->next = _hijack_malloc(hijack, sizeof(FUNC));
 		if (!(f->next))
 			return TERMPROC;
+
 		f = f->next;
-	}
-	else
-	{
+	} else {
 		hijack->funcs = _hijack_malloc(hijack, sizeof(FUNC));
 		if (!(hijack->funcs))
 			return TERMPROC;
@@ -217,24 +215,19 @@ EXPORTED_SYM FUNC *FindAllFunctionsByName(HIJACK *hijack, char *name, bool mid)
 		return NULL;
 	
 	f = hijack->funcs;
-	while (f != NULL)
-	{
+	while (f != NULL) {
 		if (mid)
 			found = (strstr(f->name, name) != NULL) ? true : false;
 		else
 			found = (strcmp(f->name, name) == 0) ? true : false;
 		
-		if (found)
-		{
-			if (!(ret))
-			{
+		if (found) {
+			if (!(ret)) {
 				ret = _hijack_malloc(hijack, sizeof(FUNC));
 				if (!(ret))
 					return NULL;
 				b = ret;
-			}
-			else
-			{
+			} else {
 				ret->next = _hijack_malloc(hijack, sizeof(FUNC));
 				if (!(ret->next))
 					return b; /* Return what we got */
@@ -267,21 +260,16 @@ EXPORTED_SYM FUNC *FindAllFunctionsByLibraryName(HIJACK *hijack, char *libname)
 		return NULL;
 	
 	f = hijack->funcs;
-	while (f != NULL)
-	{
+	while (f != NULL) {
 		found = (strcmp(f->libname, libname) == 0) ? true : false;
 		
-		if (found)
-		{
-			if (!(ret))
-			{
+		if (found) {
+			if (!(ret)) {
 				ret = _hijack_malloc(hijack, sizeof(FUNC));
 				if (!(ret))
 					return NULL;
 				b = ret;
-			}
-			else
-			{
+			} else {
 				ret->next = _hijack_malloc(hijack, sizeof(FUNC));
 				if (!(ret->next))
 					return b; /* Return what we got */
@@ -348,8 +336,7 @@ EXPORTED_SYM FUNC *FindAllFunctionsByLibraryName_uncached(HIJACK *hijack, char *
 	 */
 	clean_uncached(hijack);
 	linkmap = hijack->linkhead;
-	for (linkmap = hijack->linkhead; linkmap != NULL; linkmap = get_next_linkmap(hijack, (unsigned long)(linkmap->l_next)))
-	{
+	for (linkmap = hijack->linkhead; linkmap != NULL; linkmap = get_next_linkmap(hijack, (unsigned long)(linkmap->l_next))) {
 		t_libname = read_str(hijack, (unsigned long)(linkmap->l_name));
 		if (!(t_libname) || !strlen(t_libname))
 			continue;
@@ -357,8 +344,7 @@ EXPORTED_SYM FUNC *FindAllFunctionsByLibraryName_uncached(HIJACK *hijack, char *
 		if (IsFlagSet(hijack, F_DEBUG_VERBOSE))
 				fprintf(stderr, "[*] Looking at %s\n", t_libname);
 		
-		if (strstr(t_libname, libname))
-		{
+		if (strstr(t_libname, libname)) {
 			if (IsFlagSet(hijack, F_DEBUG_VERBOSE))
 				fprintf(stderr, "[*] Loading from %s\n", t_libname);
 		
@@ -380,19 +366,16 @@ FUNC *FindFunctionInLibraryByName_freebsd(HIJACK *hijack, char *libname, char *f
     FindAllFunctionsByLibraryName_uncached(hijack, libname);
 
 	ret = prev = hijack->uncached_funcs;
-	while (ret != NULL)
-	{
+	while (ret != NULL) {
 		next = ret->next;
-		if (!(ret->name) || strcmp(ret->name, funcname))
-		{
+		if (!(ret->name) || strcmp(ret->name, funcname)) {
 			if (ret == hijack->uncached_funcs)
 				hijack->uncached_funcs = prev = next;
 			else
 				prev->next = next;
 			
 			free_func(ret);
-		}
-		else
+		} else
 			prev = ret;
 		
 		ret = next;
@@ -431,8 +414,7 @@ EXPORTED_SYM FUNC *FindFunctionInLibraryByName(HIJACK *hijack, char *libname, ch
 	 */
 	clean_uncached(hijack);
 	linkmap = hijack->linkhead;
-	for (linkmap = hijack->linkhead; linkmap != NULL; linkmap = get_next_linkmap(hijack, (unsigned long)(linkmap->l_next)))
-	{
+	for (linkmap = hijack->linkhead; linkmap != NULL; linkmap = get_next_linkmap(hijack, (unsigned long)(linkmap->l_next))) {
 		t_libname = read_str(hijack, (unsigned long)(linkmap->l_name));
 		
 		if (!(t_libname) || !strlen(t_libname) || strstr(t_libname, libname) == NULL)
@@ -445,19 +427,16 @@ EXPORTED_SYM FUNC *FindFunctionInLibraryByName(HIJACK *hijack, char *libname, ch
 	}
 	
 	ret = prev = hijack->uncached_funcs;
-	while (ret != NULL)
-	{
+	while (ret != NULL) {
 		next = ret->next;
-		if (!(ret->name) || strcmp(ret->name, funcname))
-		{
+		if (!(ret->name) || strcmp(ret->name, funcname)) {
 			if (ret == hijack->uncached_funcs)
 				hijack->uncached_funcs = prev = next;
 			else
 				prev->next = next;
 			
 			free_func(ret);
-		}
-		else
+		} else
 			prev = ret;
 		
 		ret = next;
@@ -474,8 +453,7 @@ void clean_uncached(HIJACK *hijack)
 		return;
 	
 	cur = hijack->uncached_funcs;
-	while (cur)
-	{
+	while (cur) {
 		next = cur->next;
 		
 		free_func(cur);
@@ -502,8 +480,7 @@ CBRESULT func_found_uncached(HIJACK *hijack, void *linkmap, char *name, unsigned
 	if (!(linkmap))
 		return CONTPROC;
 	
-	if (hijack->uncached_funcs)
-	{
+	if (hijack->uncached_funcs) {
 		f = hijack->uncached_funcs;
 		while (f->next != NULL)
 			f = f->next;
@@ -512,9 +489,7 @@ CBRESULT func_found_uncached(HIJACK *hijack, void *linkmap, char *name, unsigned
 		if (!(f->next))
 			return TERMPROC;
 		f = f->next;
-	}
-	else
-	{
+	} else {
 		hijack->uncached_funcs = _hijack_malloc(hijack, sizeof(FUNC));
 		if (!(hijack->uncached_funcs))
 			return TERMPROC;
@@ -536,8 +511,7 @@ CBRESULT func_found_uncached(HIJACK *hijack, void *linkmap, char *name, unsigned
 
 void print_funcs(FUNC *f)
 {
-	while (f != NULL)
-	{
+	while (f != NULL) {
 		fprintf(stderr, "[*] %s\n", f->libname);
 		fprintf(stderr, "    [+] %s\n", f->name);
 		fprintf(stderr, "    [+] 0x%08lx\n", f->vaddr);

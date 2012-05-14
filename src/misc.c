@@ -38,3 +38,12 @@ void *_hijack_malloc(HIJACK *hijack, size_t sz)
 	
 	return p;
 }
+
+void _hijack_free(HIJACK *hijack, void *p, size_t sz)
+{
+    if (!(p))
+        return;
+
+    memset(p, 0x00, sz);
+    free(p);
+}

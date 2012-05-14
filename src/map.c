@@ -105,8 +105,7 @@ unsigned long map_memory_args(HIJACK *hijack, size_t sz, struct mmap_arg_struct 
 		}
 		
 		write_data(hijack, addr, mmap_args, sizeof(struct mmap_arg_struct));
-		if (GetErrorCode(hijack) != ERROR_NONE)
-		{
+		if (GetErrorCode(hijack) != ERROR_NONE) {
 			err = GetErrorCode(hijack);
 			goto end;
 		}
@@ -137,8 +136,7 @@ unsigned long map_memory_args(HIJACK *hijack, size_t sz, struct mmap_arg_struct 
 			err = ERROR_SYSCALL;
 #endif
 		
-		do
-		{
+		do {
 			waitpid(hijack->pid, &i, 0);
 		} while (!WIFSTOPPED(i));
 		
@@ -166,8 +164,7 @@ unsigned long map_memory_args(HIJACK *hijack, size_t sz, struct mmap_arg_struct 
 		#endif
 	}
 	
-	if ((long)addr == -1)
-	{
+	if ((long)addr == -1) {
 		if (IsFlagSet(hijack, F_DEBUG))
 			fprintf(stderr, "[-] Could not map address. Calling mmap failed!\n");
 		
@@ -247,10 +244,8 @@ int inject_shellcode(HIJACK *hijack, unsigned long addr, void *data, size_t sz)
 			More Info: http://fxr.watson.org/fxr/source/arch/i386/kernel/signal.c?v=linux-2.6#L623
 			Link valid on 09 April 2009
 		*/
-		if (origregs.orig_eax >= 0)
-		{
-			switch (origregs.eax)
-			{
+		if (origregs.orig_eax >= 0) {
+			switch (origregs.eax) {
 				case -514: /* -ERESTARTNOHAND */
 				case -512: /* -ERESTARTSYS */
 				case -513: /* -ERESTARTNOINTR */
@@ -274,10 +269,8 @@ int inject_shellcode(HIJACK *hijack, unsigned long addr, void *data, size_t sz)
 		origregs.rip = (unsigned long)addr;
 		
 		/* Above comment about adjusting EIP is valid for x86_64, too. */
-		if (origregs.orig_rax >= 0)
-		{
-			switch (origregs.rax)
-			{
+		if (origregs.orig_rax >= 0) {
+			switch (origregs.rax) {
 				case -514: /* -ERESTARTNOHAND */
 				case -512: /* -ERESTARTSYS */
 				case -513: /* -ERESTARTNOINTR */
