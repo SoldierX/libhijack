@@ -320,6 +320,7 @@ unsigned long find_appropriate_soe(HIJACK *hijack, struct Struct_Obj_Entry **ret
     }
 
     addr = (unsigned long)(l->l_addr) + (unsigned long)(dyn->d_un.d_ptr) + sizeof(unsigned long);
+    addr = *((unsigned long *)read_data(hijack, addr, sizeof(unsigned long)));
     soe = read_data(hijack, addr, sizeof(struct Struct_Obj_Entry));
     if (!(soe)) {
         fprintf(stderr, "[-] Could not get soe from got at 0x%016lx\n", addr);
