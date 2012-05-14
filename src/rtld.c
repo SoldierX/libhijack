@@ -274,40 +274,66 @@ int rtld_hook_into_rtld(HIJACK *hijack, struct rtld_aux *aux)
     return append_soe(hijack, aux->auxmap, &soe);
 }
 
-unsigned long find_last_soe_addr(HIJACK *hijack, unsigned long startaddr, unsigned long maxaddr) {
+/*
+ * Find an approprite SOE entry to hook our injected SOE into:
+ *      (oursoe->next = soe->next; soe->next = oursoe)
+ */
+unsigned long find_appropriate_soe(HIJACK *hijack, struct Struct_Obj_Entry **retsoe) {
     static struct Struct_Obj_Entry *soe=NULL;
-    unsigned long ret=(unsigned long)NULL;
-    static unsigned long searchaddr=(unsigned long)NULL;
-    char *libname;
+    ElfW(Dyn) *dyn=NULL;
+    struct link_map *l=NULL;
+    unsigned long addr;
 
-    if (!(soe)) {
-        soe = hijack->soe;
-        ReadData(hijack, hijack->pltgot + sizeof(unsigned long), &searchaddr, sizeof(unsigned long));
-        while ((soe->next)) {
-            searchaddr = soe->next;
-            soe = read_data(hijack, (unsigned long)(soe->next), sizeof(struct Struct_Obj_Entry));
-        }
-    }
+    *retsoe = NULL;
 
-    if (!searchaddr) {
-        fprintf(stderr, "[-] no searchaddr!\n");
+    if (!(hijack) || !(hijack->soe)) {
+        fprintf(stderr, "[-] You didn't initialize libhijack correctly.\n");
         return (unsigned long)NULL;
     }
 
-    /* Yes, I'm resorting to brute forcing and using hardcoded addresses... */
-    fprintf(stderr, "[*] gonna search %u bytes at 0x%016lx\n", maxaddr - startaddr, startaddr);
-    fprintf(stderr, "[*] Searching for 0x%016lx\n", searchaddr);
-    while (startaddr < maxaddr) {
-        ReadData(hijack, startaddr, &ret, sizeof(unsigned long));
-        if (ret == searchaddr)
-            return startaddr;
-
-        startaddr++;
+    l = read_data(hijack, hijack->soe->linkmap.l_next, sizeof(struct link_map));
+    if (!(l)) {
+        fprintf(stderr, "[-] Cannot load the previous linkmap struct at 0x%016lx.\n", (unsigned long)(hijack->soe->linkmap.l_next));
+        return (unsigned long)NULL;
     }
 
-    return (unsigned long)NULL;
+    addr = l->l_ld;
+    do {
+        if ((dyn))
+            _hijack_free(hijack, dyn, sizeof(ElfW(Dyn)));
+
+        dyn = read_data(hijack, addr, sizeof(ElfW(Dyn)));
+        if (!(dyn)) {
+            fprintf(stderr, "[-] dyn at 0x%016lx couldn't load\n", addr);
+            return (unsigned long)NULL;
+        }
+
+        if (dyn->d_tag == DT_PLTGOT)
+            break;
+
+        addr += sizeof(ElfW(Dyn));
+    } while (dyn->d_tag != DT_NULL);
+
+    if (!(dyn)) {
+        fprintf(stderr, "[-] dyn is NULL\n");
+        return (unsigned long)NULL;
+    }
+
+    addr = (unsigned long)(l->l_addr) + (unsigned long)(dyn->d_un.d_ptr) + sizeof(unsigned long);
+    soe = read_data(hijack, addr, sizeof(struct Struct_Obj_Entry));
+    if (!(soe)) {
+        fprintf(stderr, "[-] Could not get soe from got at 0x%016lx\n", addr);
+        return (unsigned long)NULL;
+    }
+
+    *retsoe = soe;
+
+    return addr;
 }
 
+/*
+ * Append our SOE in the middle.
+ */
 int append_soe(HIJACK *hijack, unsigned long addr, struct Struct_Obj_Entry *soe) {
     struct Struct_Obj_Entry *prevsoe=NULL, *realsoe;
     unsigned long last_soe_addr;
@@ -324,7 +350,7 @@ int append_soe(HIJACK *hijack, unsigned long addr, struct Struct_Obj_Entry *soe)
 
     if (!(realsoe))
         return -1;
-
+#if 0
     realsoe->next = addr;
     WriteData(hijack, (unsigned long)(prevsoe->next), realsoe, sizeof(struct Struct_Obj_Entry));
 
@@ -334,6 +360,7 @@ int append_soe(HIJACK *hijack, unsigned long addr, struct Struct_Obj_Entry *soe)
 
         last_soe_addr = find_last_soe_addr(hijack, last_soe_addr+sizeof(unsigned long), 0x80083a000);
     }
+#endif
 
     return 0;
 }
@@ -342,12 +369,16 @@ EXPORTED_SYM int load_library(HIJACK *hijack, char *path)
 {
     struct rtld_aux aux;
     unsigned long addr;
-    RTLD_SYM *sym;
+    struct Struct_Obj_Entry *soe=NULL;
+    char *name=NULL;
 
     memset(&aux, 0x00, sizeof(struct rtld_aux));
 
-    sym = resolv_rtld_sym(hijack, "dlsym");
-    fprintf(stderr, "[*] dlsym is at 0x%016lx (%u)\n", sym->p.ulp, sym->sz);
+    addr = find_appropriate_soe(hijack, &soe);
+    if (addr)
+        name = read_str(hijack, soe->path);
+
+    fprintf(stderr, "[*] path = %s, addr = 0x%016lx, soe = 0x%016lx\n", (name) ? name : "(null)", addr, (unsigned long)soe);
     return 0;
 
     aux.path = strdup(path);
