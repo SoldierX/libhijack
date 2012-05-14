@@ -336,32 +336,17 @@ unsigned long find_appropriate_soe(HIJACK *hijack, struct Struct_Obj_Entry **ret
  * Append our SOE in the middle.
  */
 int append_soe(HIJACK *hijack, unsigned long addr, struct Struct_Obj_Entry *soe) {
-    struct Struct_Obj_Entry *prevsoe=NULL, *realsoe;
+    struct Struct_Obj_Entry *realsoe=NULL;
     unsigned long last_soe_addr;
 
-    /* Hook the Struct_Object_Entry into the real linked list */
-    realsoe = hijack->soe;
-    while ((realsoe->next)) {
-        if ((prevsoe))
-            free(prevsoe);
-
-        prevsoe = realsoe;
-        realsoe = read_data(hijack, realsoe->next, sizeof(struct Struct_Obj_Entry));
-    }
-
-    if (!(realsoe))
+    last_soe_addr = find_appropriate_soe(hijack, &realsoe);
+    if (!last_soe_addr)
         return -1;
-#if 0
+
+    soe->next = realsoe->next;
     realsoe->next = addr;
-    WriteData(hijack, (unsigned long)(prevsoe->next), realsoe, sizeof(struct Struct_Obj_Entry));
-
-    last_soe_addr = find_last_soe_addr(hijack, 0x800600000, 0x80083a000);
-    while (last_soe_addr) {
-        WriteData(hijack, last_soe_addr, &addr, sizeof(unsigned long));
-
-        last_soe_addr = find_last_soe_addr(hijack, last_soe_addr+sizeof(unsigned long), 0x80083a000);
-    }
-#endif
+    WriteData(hijack, (unsigned long)(addr), soe, sizeof(struct Struct_Obj_Entry));
+    WriteData(hijack, (unsigned long)(last_soe_addr), realsoe, sizeof(struct Struct_Obj_Entry));
 
     return 0;
 }
@@ -374,13 +359,6 @@ EXPORTED_SYM int load_library(HIJACK *hijack, char *path)
     char *name=NULL;
 
     memset(&aux, 0x00, sizeof(struct rtld_aux));
-
-    addr = find_appropriate_soe(hijack, &soe);
-    if (addr)
-        name = read_str(hijack, soe->path);
-
-    fprintf(stderr, "[*] path = %s, addr = 0x%016lx, soe = 0x%016lx\n", (name) ? name : "(null)", addr, (unsigned long)soe);
-    return 0;
 
     aux.path = strdup(path);
     stat(aux.path, &(aux.sb));
