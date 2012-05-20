@@ -1,8 +1,5 @@
 TARGET=libhijack.so.0.6
 SONAME=libhijack.so.0
-CC=gcc
-ARCH=$(shell uname -m)
-OS=$(shell uname -s)
 CFLAGS=-fPIC -g -Wall -DDEBUG -D${ARCH} -D${OS} -I../include -fvisibility=hidden
 SRCS=libhijack.c error.c misc.c ptrace.c map.c elf.c func.c
 OBJS=libhijack.o error.o misc.o ptrace.o map.o elf.o func.o
@@ -15,18 +12,18 @@ ${TARGET}: ${OBJS}
 	${CC} -shared -Wl,-soname,${SONAME} -o ${TARGET} ${OBJS}
 
 install: ${TARGET}
-	cp ${TARGET} /usr/lib
-	ln -sf /usr/lib/${TARGET} /usr/lib/libhijack.so.0
-	ln -sf /usr/lib/${TARGET} /usr/lib/libhijack.so
-	cp ../include/hijack.h /usr/include
-	cp ../include/hijack_func.h /usr/include
+	cp ${TARGET} /${PREFIX}/lib
+	ln -sf /${PREFIX}/lib/${TARGET} /${PREFIX}/lib/libhijack.so.0
+	ln -sf /${PREFIX}/lib/${TARGET} /${PREFIX}/lib/libhijack.so
+	cp ../include/hijack.h /${PREFIX}/include
+	cp ../include/hijack_func.h /${PREFIX}/include
 
 deinstall:
-	rm /usr/lib/libhijack.so.0
-	rm /usr/lib/libhijack.so
-	rm /usr/lib/${TARGET}
-	rm /usr/include/hijack.h
-	rm /usr/include/hijack_func.h
+	rm ${PREFIX}/lib/libhijack.so.0
+	rm ${PREFIX}/lib/libhijack.so
+	rm ${PREFIX}/lib/${TARGET}
+	rm /${PREFIX}/include/hijack.h
+	rm /${PREFIX}/include/hijack_func.h
 
 depends:
 	mkdep ${CFLAGS} ${SRCS}
