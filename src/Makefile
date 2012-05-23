@@ -12,18 +12,18 @@ ${TARGET}: ${OBJS}
 	${CC} -shared -Wl,-soname,${SONAME} -o ${TARGET} ${OBJS}
 
 install: ${TARGET}
-	cp ${TARGET} /${PREFIX}/lib
-	ln -sf /${PREFIX}/lib/${TARGET} /${PREFIX}/lib/libhijack.so.0
-	ln -sf /${PREFIX}/lib/${TARGET} /${PREFIX}/lib/libhijack.so
-	cp ../include/hijack.h /${PREFIX}/include
-	cp ../include/hijack_func.h /${PREFIX}/include
+	cp ${TARGET} ${PREFIX}/lib
+	ln -sf ${PREFIX}/lib/${TARGET} ${PREFIX}/lib/libhijack.so.0
+	ln -sf ${PREFIX}/lib/${TARGET} ${PREFIX}/lib/libhijack.so
+	cp ../include/hijack.h ${PREFIX}/include
+	cp ../include/hijack_func.h ${PREFIX}/include
 
 deinstall:
 	rm ${PREFIX}/lib/libhijack.so.0
 	rm ${PREFIX}/lib/libhijack.so
 	rm ${PREFIX}/lib/${TARGET}
-	rm /${PREFIX}/include/hijack.h
-	rm /${PREFIX}/include/hijack_func.h
+	rm ${PREFIX}/include/hijack.h
+	rm ${PREFIX}/include/hijack_func.h
 
 depends:
 	mkdep ${CFLAGS} ${SRCS}

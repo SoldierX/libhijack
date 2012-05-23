@@ -1,28 +1,29 @@
 #!/usr/bin/env bash
 
-os=$(uname -s)
-arch=$(uname -m)
+OS=$(uname -s)
+ARCH=$(uname -m)
 
 # Prefer clang, deprecate gcc
-CC=$(which clang)
+#CC=$(which clang)
+CC=$(which gcc)
 if [ ${#CC} -eq 0 ]; then
     CC="gcc"
 fi
 
 PREFIX="/usr"
-if [ ${os} = "FreeBSD" ]; then
+if [ ${OS} = "FreeBSD" ]; then
     PREFIX="/usr/local"
 fi
 
-make="make"
-if [ ${os} = "FreeBSD" ]; then
-    make="gmake"
+MAKE="make"
+if [ ${OS} = "FreeBSD" ]; then
+    MAKE="gmake"
 fi
 
 build() {
     cd src
 
-    ${make} PREFIX=${PREFIX} OS=${os} ARCH=${arch} CC=${CC} $1
+    ${MAKE} PREFIX=${PREFIX} OS=${OS} ARCH=${ARCH} CC=${CC} $1
     ret=$?
 
     cd ..
