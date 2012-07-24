@@ -19,3 +19,5 @@ include/config.h
 config.log
 config.status
 configure
+Makefile
+src/Makefile
