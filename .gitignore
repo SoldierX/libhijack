@@ -13,3 +13,9 @@ freebsd_tests64/*
 !freebsd_tests64/Makefile
 !freebsd_tests64/*.c
 !freebsd_tests64/*.asm
+
+autom4te.cache
+include/config.h
+config.log
+config.status
+configure

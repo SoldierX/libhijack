@@ -1,0 +1,22 @@
+package		= @PACKAGE_NAME@
+version		= @PACKAGE_VERSION@
+tarname		= @PACKAGE_TARNAME@
+distdir		= $(tarname)-$(version)
+
+prefix		= @prefix@
+exec_prefix	= @exec_prefix@
+bindir		= @bindir@
+
+srcdir		= @srcdir@
+VPATH		= @srcdir@
+
+all:
+
+clean:
+	rm -f *.o
+
+distclean:
+	${MAKE} clean
+	rm -f Makefile
+
+.PHONY: all clean distclean
