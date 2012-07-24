@@ -10,7 +10,16 @@ bindir		= @bindir@
 srcdir		= @srcdir@
 VPATH		= @srcdir@
 
+CC			= @CC@
+CFLAGS		= @CFLAGS@
+LDFLAGS		= @LDFLAGS@
+DEFS		= @DEFS@
+
 all:
+	${MAKE} ${package}.so
+
+${package}.so:
+	${CC} -I../include ${CFLAGS} ${DEFS} -fPIC -shared -o ${package}.so *.c
 
 clean:
 	rm -f *.o

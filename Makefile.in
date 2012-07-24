@@ -11,7 +11,7 @@ srcdir		= @srcdir@
 VPATH		= @srcdir@
 
 all:
-	cd src/src && ${MAKE}
+	cd ${srcdir}/src && ${MAKE}
 
 Makefile: Makefile.in config.status
 	./config.status $@
