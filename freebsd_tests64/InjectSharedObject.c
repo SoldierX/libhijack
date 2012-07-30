@@ -39,16 +39,19 @@ int main(int argc, char *argv[])
 	if (LocateAllFunctions(hijack) != ERROR_NONE)
 	{
 		fprintf(stderr, "[-] Couldn't locate all functions!\n");
+        Detach(hijack);
 		exit(EXIT_FAILURE);
 	}
 
     if (LocateSystemCall(hijack) != ERROR_NONE) {
         fprintf(stderr, "[-] Couldn't locate system call!\n");
+        Detach(hijack);
         exit(EXIT_FAILURE);
     }
 
     if (LoadLibrary(hijack, argv[2]) != ERROR_NONE) {
         fprintf(stderr, "[-] Couldn't load lib!\n");
+        Detach(hijack);
         exit(EXIT_FAILURE);
     }
 	

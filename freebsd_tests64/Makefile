@@ -1,5 +1,6 @@
 CC=gcc
-CFLAGS=-I/usr/src/libexec/rtld-elf -I/usr/src/libexec/rtld-elf/amd64 -DDEBUG -g -DFreeBSD -Damd64
+LIBHIJACK_PREFIX=/usr/local
+CFLAGS=-I${LIBHIJACK_PREFIX}/include -I/usr/src/libexec/rtld-elf -I/usr/src/libexec/rtld-elf/amd64 -DDEBUG -g -DFreeBSD -Damd64
 
 all:
 	gmake PrintFuncs
@@ -12,16 +13,16 @@ clean:
 	rm -f *.o PrintFuncs FindSyscall
 
 PrintFuncs: PrintFuncs.c
-	${CC} -o PrintFuncs ${CFLAGS} -lhijack PrintFuncs.c
+	${CC} -o PrintFuncs ${CFLAGS} -L${LIBHIJACK_PREFIX}/lib -lhijack PrintFuncs.c
 
 FindSyscall: FindSyscall.c
-	${CC} -o FindSyscall ${CFLAGS} -lhijack FindSyscall.c
+	${CC} -o FindSyscall ${CFLAGS} -L${LIBHIJACK_PREFIX}/lib -lhijack FindSyscall.c
 
 MapMemory: MapMemory.c
-	${CC} -o MapMemory ${CFLAGS} -lhijack MapMemory.c
+	${CC} -o MapMemory ${CFLAGS} -L${LIBHIJACK_PREFIX}/lib -lhijack MapMemory.c
 
 FindFunc: FindFunc.c
-	${CC} -o FindFunc ${CFLAGS} -lhijack FindFunc.c
+	${CC} -o FindFunc ${CFLAGS} -L${LIBHIJACK_PREFIX}/lib -lhijack FindFunc.c
 
 InjectSharedObject: InjectSharedObject.c
-	${CC} -o InjectSharedObject ${CFLAGS} -lhijack InjectSharedObject.c
+	${CC} -o InjectSharedObject ${CFLAGS} -L${LIBHIJACK_PREFIX}/lib -lhijack InjectSharedObject.c

@@ -269,7 +269,6 @@ int rtld_hook_into_rtld(HIJACK *hijack, struct rtld_aux *aux)
         soe.phdr = aux->auxmap + sizeof(struct Struct_Obj_Entry);
         soe.phdr_alloc = false;
     }
-    WriteData(hijack, aux->auxmap, &soe, sizeof(struct Struct_Obj_Entry));
 
     return append_soe(hijack, aux->auxmap, &soe);
 }
@@ -279,55 +278,59 @@ int rtld_hook_into_rtld(HIJACK *hijack, struct rtld_aux *aux)
  *      (oursoe->next = soe->next; soe->next = oursoe)
  */
 unsigned long find_appropriate_soe(HIJACK *hijack, struct Struct_Obj_Entry **retsoe) {
-    static struct Struct_Obj_Entry *soe=NULL;
-    ElfW(Dyn) *dyn=NULL;
-    struct link_map *l=NULL;
+    static struct Struct_Obj_Entry *soe=NULL, *prev=NULL, *next;
     unsigned long addr;
+    char *libname;
 
     *retsoe = NULL;
+    addr = *(unsigned long *)read_data(hijack, hijack->pltgot+sizeof(unsigned long), sizeof(unsigned long));
 
     if (!(hijack) || !(hijack->soe)) {
         fprintf(stderr, "[-] You didn't initialize libhijack correctly.\n");
         return (unsigned long)NULL;
     }
 
-    l = read_data(hijack, hijack->soe->linkmap.l_next, sizeof(struct link_map));
-    if (!(l)) {
-        fprintf(stderr, "[-] Cannot load the previous linkmap struct at 0x%016lx.\n", (unsigned long)(hijack->soe->linkmap.l_next));
-        return (unsigned long)NULL;
-    }
-
-    addr = l->l_ld;
+    /*
+     * Order of SOE objects in memory:
+     * 1) Program
+     * 2) Dependant shared objects
+     * 3) rtld
+     *
+     * By default, the program's SOE is located at 0x80061a000
+     * on amd64. SOE injections need to occur between the
+     * program and the rtld to pretend as if it was loaded when
+     * the program initially started.
+     */
+    soe = hijack->soe;
     do {
-        if ((dyn))
-            _hijack_free(hijack, dyn, sizeof(ElfW(Dyn)));
-
-        dyn = read_data(hijack, addr, sizeof(ElfW(Dyn)));
-        if (!(dyn)) {
-            fprintf(stderr, "[-] dyn at 0x%016lx couldn't load\n", addr);
+        if ((prev))
+            _hijack_free(hijack, prev, sizeof(struct Struct_Obj_Entry));
+        prev = soe;
+        next = read_data(hijack, soe->next, sizeof(struct Struct_Obj_Entry));
+        if (!(next))
             return (unsigned long)NULL;
-        }
 
-        if (dyn->d_tag == DT_PLTGOT)
+        if (!(next->next))
             break;
 
-        addr += sizeof(ElfW(Dyn));
-    } while (dyn->d_tag != DT_NULL);
+        addr = soe->next;
+        soe = next;
+    } while ((soe->next));
 
-    if (!(dyn)) {
-        fprintf(stderr, "[-] dyn is NULL\n");
+    if ((next))
+        free(next);
+
+    if (!(soe) || !(soe->next)) {
         return (unsigned long)NULL;
     }
 
-    addr = (unsigned long)(l->l_addr) + (unsigned long)(dyn->d_un.d_ptr) + sizeof(unsigned long);
-    addr = *((unsigned long *)read_data(hijack, addr, sizeof(unsigned long)));
-    soe = read_data(hijack, addr, sizeof(struct Struct_Obj_Entry));
-    if (!(soe)) {
-        fprintf(stderr, "[-] Could not get soe from got at 0x%016lx\n", addr);
-        return (unsigned long)NULL;
+    if (IsFlagSet(hijack, F_DEBUG_VERBOSE)) {
+        libname = read_str(hijack, soe->path);
+        if ((libname))
+            fprintf(stderr, "[*] found appropriate soe @ 0x%016lx: %s\n", (unsigned long)addr, libname);
     }
 
-    *retsoe = soe;
+    *retsoe = read_data(hijack, soe, sizeof(struct Struct_Obj_Entry));
 
     return addr;
 }
@@ -340,8 +343,25 @@ int append_soe(HIJACK *hijack, unsigned long addr, struct Struct_Obj_Entry *soe)
     unsigned long last_soe_addr;
 
     last_soe_addr = find_appropriate_soe(hijack, &realsoe);
-    if (!last_soe_addr)
+    if (!last_soe_addr) {
+        if (IsFlagSet(hijack, F_DEBUG_VERBOSE))
+            fprintf(stderr, "[-] append_soe: no appropriate soe found\n");
+
         return -1;
+    }
+
+    if (IsFlagSet(hijack, F_DEBUG_VERBOSE)) {
+        fprintf(stderr, "[*] append_soe: prev soe: 0x%016lx\n", last_soe_addr);
+        fprintf(stderr, "[*] append_soe: realsoe->next: 0x%016lx\n", realsoe->next);
+    }
+
+    /* Phase 1 debugging - Attempt to segfault the rtld */
+    memset(soe, 0xcc, sizeof(struct Struct_Obj_Entry));
+    soe->mainprog =
+        soe->rtld =
+        soe->relocated =
+        soe->bind_now =
+        soe->gnu_ifunc = 0;
 
     soe->next = realsoe->next;
     realsoe->next = addr;
