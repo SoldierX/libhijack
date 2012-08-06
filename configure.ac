@@ -1,14 +1,15 @@
 AC_INIT([libhijack], [0.7], [lattera@gmail.com])
 AC_CANONICAL_SYSTEM
 AM_INIT_AUTOMAKE
+LT_INIT
 
+AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([src/elf.c])
 AC_CONFIG_HEADERS([include/config.h])
 
 # Prefer clang
 AC_PROG_CC([clang gcc])
 AC_PROG_INSTALL
-AC_PROG_RANLIB
 
 case "$target_os" in
 freebsd*)

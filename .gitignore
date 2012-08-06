@@ -1,5 +1,7 @@
 *.o
 *.so*
+*.lo
+*.la
 src/.depend
 src/tags
 doc/*
@@ -30,3 +32,4 @@ include/stamp-h1
 missing
 src/.deps/
 src/libhijack.a
+libtool
