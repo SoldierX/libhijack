@@ -8,9 +8,13 @@ all:
 	gmake MapMemory
 	gmake FindFunc
 	gmake InjectSharedObject
+	gmake pid
 
 clean:
-	rm -f *.o PrintFuncs FindSyscall
+	rm -f *.o PrintFuncs FindSyscall InjectSharedObject MapMemory FindFunc pid
+
+pid: pid.c
+	${CC} -o pid ${CFLAGS} -lpcap pid.c
 
 PrintFuncs: PrintFuncs.c
 	${CC} -o PrintFuncs ${CFLAGS} -L${LIBHIJACK_PREFIX}/lib -lhijack PrintFuncs.c

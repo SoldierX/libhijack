@@ -278,12 +278,7 @@ int rtld_hook_into_rtld(HIJACK *hijack, struct rtld_aux *aux)
  *      (oursoe->next = soe->next; soe->next = oursoe)
  */
 unsigned long find_appropriate_soe(HIJACK *hijack, struct Struct_Obj_Entry **retsoe) {
-    static struct Struct_Obj_Entry *soe=NULL, *prev=NULL, *next;
-    unsigned long addr;
-    char *libname;
-
     *retsoe = NULL;
-    addr = *(unsigned long *)read_data(hijack, hijack->pltgot+sizeof(unsigned long), sizeof(unsigned long));
 
     if (!(hijack) || !(hijack->soe)) {
         fprintf(stderr, "[-] You didn't initialize libhijack correctly.\n");
@@ -300,39 +295,15 @@ unsigned long find_appropriate_soe(HIJACK *hijack, struct Struct_Obj_Entry **ret
      * on amd64. SOE injections need to occur between the
      * program and the rtld to pretend as if it was loaded when
      * the program initially started.
+     *
+     * By injecting right after the program's SOE and before
+     * other shared objects, we essentially implement
+     * LD_PRELOAD. Be careful with naming the functions in
+     * your injected shared object, unless BIND_NOW was used.
      */
-    soe = hijack->soe;
-    do {
-        if ((prev))
-            _hijack_free(hijack, prev, sizeof(struct Struct_Obj_Entry));
-        prev = soe;
-        next = read_data(hijack, soe->next, sizeof(struct Struct_Obj_Entry));
-        if (!(next))
-            return (unsigned long)NULL;
-
-        if (!(next->next))
-            break;
-
-        addr = soe->next;
-        soe = next;
-    } while ((soe->next));
-
-    if ((next))
-        free(next);
-
-    if (!(soe) || !(soe->next)) {
-        return (unsigned long)NULL;
-    }
-
-    if (IsFlagSet(hijack, F_DEBUG_VERBOSE)) {
-        libname = read_str(hijack, soe->path);
-        if ((libname))
-            fprintf(stderr, "[*] found appropriate soe @ 0x%016lx: %s\n", (unsigned long)addr, libname);
-    }
-
-    *retsoe = read_data(hijack, soe, sizeof(struct Struct_Obj_Entry));
-
-    return addr;
+    *retsoe = hijack->soe;
+    return *((unsigned long *)
+            read_data(hijack, hijack->pltgot+sizeof(unsigned long), sizeof(unsigned long)));
 }
 
 /*
@@ -355,12 +326,23 @@ int append_soe(HIJACK *hijack, unsigned long addr, struct Struct_Obj_Entry *soe)
         fprintf(stderr, "[*] append_soe: realsoe->next: 0x%016lx\n", realsoe->next);
     }
 
-    /* Phase 1 debugging - Attempt to segfault the rtld */
-    memset(soe, 0xcc, sizeof(struct Struct_Obj_Entry));
+    memset(soe, 0xff, sizeof(struct Struct_Obj_Entry));
     soe->mainprog =
         soe->rtld =
-        soe->relocated =
         soe->bind_now =
+        soe->phdr_alloc =
+        soe->z_origin =
+        soe->jmpslots_done =
+        soe->z_nodelete =
+        soe->z_noopen =
+        soe->z_loadfltr =
+        soe->z_nodeflib =
+        soe->ref_nodel =
+        soe->init_scanned =
+        soe->dag_inited =
+        soe->filtees_loaded =
+        soe->irelative =
+        soe->crt_no_init =
         soe->gnu_ifunc = 0;
 
     soe->next = realsoe->next;
