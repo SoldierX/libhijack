@@ -1,8 +1,8 @@
-CC=gcc
-LIBHIJACK_PREFIX=/usr/local
-CFLAGS=-I${LIBHIJACK_PREFIX}/include -I/usr/src/libexec/rtld-elf -I/usr/src/libexec/rtld-elf/amd64 -DDEBUG -g -DFreeBSD -Damd64
+CC=clang
+CFLAGS=-I../include -I/usr/src/libexec/rtld-elf -I/usr/src/libexec/rtld-elf/amd64 -DDEBUG -g -DFreeBSD -Damd64
 
 all:
+	gmake InjectSharedObject
 	gmake PrintFuncs
 	gmake FindSyscall
 	gmake MapMemory
@@ -15,6 +15,9 @@ clean:
 
 pid: pid.c
 	${CC} -o pid ${CFLAGS} -lpcap pid.c
+
+InjectSharedObject: InjectSharedObject.c
+	${CC} -o InjectSharedObject ${CFLAGS} -lhijack InjectSharedObject.c
 
 PrintFuncs: PrintFuncs.c
 	${CC} -o PrintFuncs ${CFLAGS} -L${LIBHIJACK_PREFIX}/lib -lhijack PrintFuncs.c
