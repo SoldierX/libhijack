@@ -1,6 +1,6 @@
 TARGET=libhijack.so.0.6
 SONAME=libhijack.so.0
-CC=gcc
+CC=clang
 ARCH=$(shell uname -m)
 OS=$(shell uname -s)
 CFLAGS=-fPIC -g -Wall -DDEBUG -D${ARCH} -D${OS} -I../include -fvisibility=hidden

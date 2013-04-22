@@ -80,7 +80,11 @@ char *read_str(HIJACK *hijack, unsigned long base)
 int write_data(HIJACK *hijack, unsigned long start, void *buf, size_t sz)
 {
 	size_t i=0;
-	long word;
+#if defined(FreeBSD)
+    int word;
+#else
+	unsigned long word;
+#endif
 	int err = ERROR_NONE;
 	
 	while (i < sz)
