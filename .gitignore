@@ -18,6 +18,7 @@ autom4te.cache
 include/config.h
 config.log
 config.status
+configure
 Makefile
 src/Makefile
 .configure.ac.swp
