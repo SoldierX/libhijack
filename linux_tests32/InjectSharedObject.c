@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
 	close(fd);
 	
 	LocateAllFunctions(hijack);
-	funcs = FindFunctionInLibraryByName(hijack, "/lib/libdl.so.2", "dlopen");
+	funcs = FindFunctionInLibraryByName(hijack, "/lib/tls/i686/cmov/libdl.so.2", "dlopen");
 	if (!(funcs))
 	{
 		fprintf(stderr, "[-] Couldn't locate dlopen!\n");
@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
 	dlopen_addr = funcs->vaddr;
 	printf("dlopen_addr: 0x%08lx\n", dlopen_addr);
 	
-	funcs = FindFunctionInLibraryByName(hijack, "/lib/libdl.so.2", "dlsym");
+	funcs = FindFunctionInLibraryByName(hijack, "/lib/tls/i686/cmov/libdl.so.2", "dlsym");
 	if (!(funcs))
 	{
 		fprintf(stderr, "[-] Couldn't locate dlsym!\n");

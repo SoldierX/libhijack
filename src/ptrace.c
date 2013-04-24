@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Shawn Webb
+ * Copyright (c) 2011-2012, Shawn Webb
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -30,21 +30,17 @@ void *read_data(HIJACK *hijack, unsigned long start, size_t sz)
 	long ptracedata;
 	size_t readsz=0;
 	
-	do
-	{
+	do {
 		ptracedata = ptrace(PTRACE_PEEKTEXT, hijack->pid, (void *)((unsigned long)start + readsz), 1);
-		if (ptracedata == -1)
-		{
-			if (errno)
-			{
+		if (ptracedata == -1) {
+			if (errno) {
 				SetError(hijack, ERROR_SYSCALL);
 				return data;
 			}
 		}
 		
 		tmpdata = realloc(data, readsz+1);
-		if (!(tmpdata))
-		{
+		if (!(tmpdata)) {
 			SetError(hijack, ERROR_SYSCALL);
 			return data;
 		}
@@ -80,18 +76,20 @@ char *read_str(HIJACK *hijack, unsigned long base)
 int write_data(HIJACK *hijack, unsigned long start, void *buf, size_t sz)
 {
 	size_t i=0;
-	long word;
+#if defined(FreeBSD)
+    int word;
+    int nullarg = 0;
+#else
+	unsigned long word;
+    void *nullarg = NULL;
+#endif
 	int err = ERROR_NONE;
 	
-	while (i < sz)
-	{
-		if (i + sizeof(word) > sz)
-		{
-			word = ptrace(PTRACE_PEEKTEXT, hijack->pid, (void *)(start + i), NULL);
+	while (i < sz) {
+		if (i + sizeof(word) > sz) {
+			word = ptrace(PTRACE_PEEKTEXT, hijack->pid, (void *)(start + i), nullarg);
 			memcpy(&word, (void *)((unsigned char *)buf + i), sz-i);
-		}
-		else
-		{
+		} else {
 			memcpy(&word, (void *)((unsigned char *)buf + i), sizeof(word));
 		}
 		if (ptrace(PTRACE_POKETEXT, hijack->pid, (void *)(start + i), word) < 0)

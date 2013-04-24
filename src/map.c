@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Shawn Webb
+ * Copyright (c) 2011-2012, Shawn Webb
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -61,7 +61,7 @@ unsigned long map_memory_args(HIJACK *hijack, size_t sz, struct mmap_arg_struct 
 	regs = _hijack_malloc(hijack, sizeof(REGS));
 	
 #if defined(FreeBSD)
-    if (ptrace(PTRACE_GETREGS, hijack->pid, regs, NULL) < 0) {
+    if (ptrace(PTRACE_GETREGS, hijack->pid, (caddr_t)regs, 0) < 0) {
         err = ERROR_SYSCALL;
         goto end;
     }
@@ -77,7 +77,7 @@ unsigned long map_memory_args(HIJACK *hijack, size_t sz, struct mmap_arg_struct 
     regs->r_r9 = 0;
     regs->r_rsp -= sizeof(unsigned long);
 
-    if (ptrace(PTRACE_SETREGS, hijack->pid, regs, 0) < 0) {
+    if (ptrace(PTRACE_SETREGS, hijack->pid, (caddr_t)regs, 0) < 0) {
         err = ERROR_SYSCALL;
         goto end;
     }
@@ -105,8 +105,7 @@ unsigned long map_memory_args(HIJACK *hijack, size_t sz, struct mmap_arg_struct 
 		}
 		
 		write_data(hijack, addr, mmap_args, sizeof(struct mmap_arg_struct));
-		if (GetErrorCode(hijack) != ERROR_NONE)
-		{
+		if (GetErrorCode(hijack) != ERROR_NONE) {
 			err = GetErrorCode(hijack);
 			goto end;
 		}
@@ -137,13 +136,12 @@ unsigned long map_memory_args(HIJACK *hijack, size_t sz, struct mmap_arg_struct 
 			err = ERROR_SYSCALL;
 #endif
 		
-		do
-		{
+		do {
 			waitpid(hijack->pid, &i, 0);
 		} while (!WIFSTOPPED(i));
 		
 #if defined(FreeBSD)
-        ptrace(PTRACE_GETREGS, hijack->pid, regs, 0);
+        ptrace(PTRACE_GETREGS, hijack->pid, (caddr_t)regs, 0);
         addr = regs->r_rax;
 #else
 		ptrace(PTRACE_GETREGS, hijack->pid, NULL, regs);
@@ -166,13 +164,12 @@ unsigned long map_memory_args(HIJACK *hijack, size_t sz, struct mmap_arg_struct 
 		#endif
 	}
 	
-	if ((long)addr == -1)
-	{
+	if ((long)addr == -1) {
 		if (IsFlagSet(hijack, F_DEBUG))
 			fprintf(stderr, "[-] Could not map address. Calling mmap failed!\n");
 		
 #if defined(FreeBSD)
-        ptrace(PTRACE_SETREGS, hijack->pid, &regs_backup, 0);
+        ptrace(PTRACE_SETREGS, hijack->pid, (caddr_t)(&regs_backup), 0);
 #else
 		ptrace(PTRACE_SETREGS, hijack->pid, NULL, &regs_backup);
 #endif
@@ -182,7 +179,7 @@ unsigned long map_memory_args(HIJACK *hijack, size_t sz, struct mmap_arg_struct 
 
 end:
 #if defined(FreeBSD)
-    if (ptrace(PTRACE_SETREGS, hijack->pid, &regs_backup, 0) < 0) {
+    if (ptrace(PTRACE_SETREGS, hijack->pid, (caddr_t)(&regs_backup), 0) < 0) {
         err = ERROR_SYSCALL;
     }
 #else
@@ -205,26 +202,27 @@ int inject_shellcode_freebsd(HIJACK *hijack, unsigned long addr, void *data, siz
 
     write_data(hijack, addr, data, sz);
 
-    if (ptrace(PTRACE_GETREGS, hijack->pid, &origregs, 0) < 0)
+    if (ptrace(PTRACE_GETREGS, hijack->pid, (caddr_t)(&origregs), 0) < 0)
         return SetError(hijack, ERROR_SYSCALL);
 
     origregs.r_rip = addr;
 
-    if (ptrace(PTRACE_SETREGS, hijack->pid, &origregs, 0) < 0)
+    if (ptrace(PTRACE_SETREGS, hijack->pid, (caddr_t)(&origregs), 0) < 0)
         return SetError(hijack, ERROR_SYSCALL);
 
     return SetError(hijack, ERROR_NONE);
 }
 #endif
 
+#if defined(FreeBSD)
+int inject_shellcode(HIJACK *hijack, unsigned long addr, void *data, size_t sz) {
+    return inject_shellcode_freebsd(hijack, addr, data, sz);
+}
+#else
 int inject_shellcode(HIJACK *hijack, unsigned long addr, void *data, size_t sz)
 {
 	REGS origregs;
 
-#if defined(FreeBSD)
-    return inject_shellcode_freebsd(hijack, addr, data, sz);
-#endif
-	
 	write_data(hijack, addr, data, sz);
 	
 	if (ptrace(PTRACE_GETREGS, hijack->pid, NULL, &origregs) < 0)
@@ -247,10 +245,8 @@ int inject_shellcode(HIJACK *hijack, unsigned long addr, void *data, size_t sz)
 			More Info: http://fxr.watson.org/fxr/source/arch/i386/kernel/signal.c?v=linux-2.6#L623
 			Link valid on 09 April 2009
 		*/
-		if (origregs.orig_eax >= 0)
-		{
-			switch (origregs.eax)
-			{
+		if (origregs.orig_eax >= 0) {
+			switch (origregs.eax) {
 				case -514: /* -ERESTARTNOHAND */
 				case -512: /* -ERESTARTSYS */
 				case -513: /* -ERESTARTNOINTR */
@@ -274,10 +270,8 @@ int inject_shellcode(HIJACK *hijack, unsigned long addr, void *data, size_t sz)
 		origregs.rip = (unsigned long)addr;
 		
 		/* Above comment about adjusting EIP is valid for x86_64, too. */
-		if (origregs.orig_rax >= 0)
-		{
-			switch (origregs.rax)
-			{
+		if (origregs.orig_rax >= 0) {
+			switch (origregs.rax) {
 				case -514: /* -ERESTARTNOHAND */
 				case -512: /* -ERESTARTSYS */
 				case -513: /* -ERESTARTNOINTR */
@@ -291,8 +285,9 @@ int inject_shellcode(HIJACK *hijack, unsigned long addr, void *data, size_t sz)
 		}
 	#endif
 	
-	if (ptrace(PTRACE_SETREGS, hijack->pid, NULL, &origregs) < 0)
+	if (ptrace(PTRACE_SETREGS, hijack->pid,  &origregs) < 0)
 		return SetError(hijack, ERROR_SYSCALL);
 	
 	return SetError(hijack, ERROR_NONE);
 }
+#endif /* defined(FreeBSD) */

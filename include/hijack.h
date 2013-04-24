@@ -97,7 +97,7 @@ typedef struct _hijack {
 		ElfW(Phdr) *phdr;
 	} phdr;
 	
-	struct user_regs_struct *backup_regs;
+	REGS *backup_regs;
 	
 	unsigned long pltgot;
 	struct link_map *linkhead;
@@ -134,5 +134,6 @@ REGS *GetRegs(HIJACK *);
 int SetRegs(HIJACK *, REGS *);
 
 unsigned long FindFunctionInGot(HIJACK *, unsigned long, unsigned long);
+int load_library(HIJACK *, char *);
 
 #endif
