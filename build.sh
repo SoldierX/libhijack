@@ -4,8 +4,8 @@ OS=$(uname -s)
 ARCH=$(uname -m)
 
 # Prefer clang, deprecate gcc
-CC=$(which clang)
-#CC=$(which gcc)
+#CC=$(which clang)
+CC=$(which gcc)
 if [ ${#CC} -eq 0 ]; then
     CC="gcc"
 fi
