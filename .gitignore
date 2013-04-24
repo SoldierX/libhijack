@@ -24,8 +24,12 @@ Makefile
 src/Makefile
 .configure.ac.swp
 aclocal.m4
+config.guess
+config.sub
+depcomp
 *~
 include/stamp-h1
+missing
 src/.deps/
 src/libhijack.a
 libtool
