@@ -45,6 +45,13 @@ int main(int argc, char *argv[])
 	}
 	backup = GetRegs(hijack);
 	regs = malloc(sizeof(REGS));
+	if (regs == NULL)
+	{
+		perror("malloc");
+		Detach(hijack);
+		close(fd);
+		exit(EXIT_FAILURE);
+	}
 	
 	if (stat(argv[2], &sb) == -1) {
         perror("stat");
