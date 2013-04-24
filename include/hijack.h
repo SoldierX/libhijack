@@ -134,6 +134,6 @@ REGS *GetRegs(HIJACK *);
 int SetRegs(HIJACK *, REGS *);
 
 unsigned long FindFunctionInGot(HIJACK *, unsigned long, unsigned long);
-int LoadLibrary(HIJACK *, char *);
+int load_library(HIJACK *, char *);
 
 #endif

@@ -1,7 +1,7 @@
 #if !defined(_OS_RESOLV_H)
 #define _OS_RESOLV_H
 
-typedef enum _rtld_sym_type { UNKNOWN=0, VAR=1, FUNC=2 } RTLD_SYM_TYPE;
+typedef enum _rtld_sym_type { RTLD_SYM_UNKNOWN=0, RTLD_SYM_VAR=1, RTLD_SYM_FUNC=2 } RTLD_SYM_TYPE;
 
 typedef struct _rtld_sym {
     RTLD_SYM_TYPE type;

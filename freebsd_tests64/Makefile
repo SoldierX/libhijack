@@ -1,5 +1,5 @@
 CC=clang
-CFLAGS=-I../include -I/usr/src/libexec/rtld-elf -I/usr/src/libexec/rtld-elf/amd64 -DDEBUG -g -DFreeBSD -Damd64
+CFLAGS=-I../include -I/usr/src/libexec/rtld-elf -I/usr/src/libexec/rtld-elf/amd64 -DDEBUG -g -DFreeBSD -Damd64 -L/usr/local/lib
 
 all:
 	gmake InjectSharedObject
@@ -30,6 +30,3 @@ MapMemory: MapMemory.c
 
 FindFunc: FindFunc.c
 	${CC} -o FindFunc ${CFLAGS} -L${LIBHIJACK_PREFIX}/lib -lhijack FindFunc.c
-
-InjectSharedObject: InjectSharedObject.c
-	${CC} -o InjectSharedObject ${CFLAGS} -L${LIBHIJACK_PREFIX}/lib -lhijack InjectSharedObject.c

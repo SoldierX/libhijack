@@ -80,7 +80,7 @@ unsigned long find_rtld_linkmap(HIJACK *hijack)
  * resolved address based on the base address from the linkmap
  * added with the offset from the symbol table.
  */
-RTLD_SYM *resolv_rtld_sym(HIJACK *hijack, char *name)
+EXPORTED_SYM RTLD_SYM *resolv_rtld_sym(HIJACK *hijack, char *name)
 {
     RTLD_SYM *sym=NULL;
     struct link_map *l;
@@ -162,10 +162,10 @@ RTLD_SYM *resolv_rtld_sym(HIJACK *hijack, char *name)
 
             switch (ELF_ST_TYPE(symtab[i].st_info)) {
                 case STT_FUNC:
-                    sym->type = FUNC;
+                    sym->type = RTLD_SYM_FUNC;
                     break;
                 case STT_OBJECT:
-                    sym->type = VAR;
+                    sym->type = RTLD_SYM_VAR;
                     break;
             }
 

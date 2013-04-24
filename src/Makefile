@@ -9,6 +9,7 @@ CFLAGS=-fPIC -g -Wall -DDEBUG -D${ARCH} -D${OS} -I../include -fvisibility=hidden
 
 ifeq (${OS}, FreeBSD)
 	CFLAGS += -I/usr/src/libexec/rtld-elf -I/usr/src/libexec/rtld-elf/${ARCH}
+	PREFIX=/usr/local
 endif
 
 ${TARGET}: ${OBJS}
