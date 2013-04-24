@@ -32,6 +32,7 @@
 #include "hijack_elf.h"
 #include "os_resolv.h"
 
+#if defined(FreeBSD)
 /*
  * Find the RTLD's linkmap. On FreeBSD, the RTLD's linkmap is the last entry.
  *
@@ -178,3 +179,4 @@ EXPORTED_SYM RTLD_SYM *resolv_rtld_sym(HIJACK *hijack, char *name)
     close(fd);
     return sym;
 }
+#endif
