@@ -54,7 +54,7 @@ EXPORTED_SYM int LocateAllFunctions(HIJACK *hijack)
     soe = hijack->soe;
     do {
         freebsd_parse_soe(hijack, soe, func_found);
-    } while ((soe = read_data(hijack, soe->next, sizeof(struct Struct_Obj_Entry))) != NULL);
+    } while ((soe = read_data(hijack, (unsigned long)(soe->next), sizeof(struct Struct_Obj_Entry))) != NULL);
 #elif defined(Linux)
 	linkmap = hijack->linkhead;
 	do
@@ -127,9 +127,9 @@ PLT *get_all_PLTs_freebsd(HIJACK *hijack)
             plt = plt->next;
         }
 
-        plt->libname = read_str(hijack, soe->path);
+        plt->libname = read_str(hijack, (unsigned long)(soe->path));
         plt->p.raw = soe->pltgot;
-    } while ((soe = read_data(hijack, soe->next, sizeof(struct Struct_Obj_Entry))));
+    } while ((soe = read_data(hijack, (unsigned long)(soe->next), sizeof(struct Struct_Obj_Entry))));
 
     return ret;
 }
@@ -296,14 +296,14 @@ FUNC *FindAllFunctionsByLibraryName_uncached_freebsd(HIJACK *hijack, char *libna
 
     soe = hijack->soe;
     do {
-        t_libname = read_str(hijack, soe->path);
+        t_libname = read_str(hijack, (unsigned long)(soe->path));
         if (!(t_libname) || strstr(t_libname, libname) == NULL)
             continue;
 
         freebsd_parse_soe(hijack, soe, func_found_uncached);
 
         return hijack->uncached_funcs;
-    } while ((soe = read_data(hijack, soe->next, sizeof(struct Struct_Obj_Entry))));
+    } while ((soe = read_data(hijack, (unsigned long)(soe->next), sizeof(struct Struct_Obj_Entry))));
 
     return NULL;
 }
@@ -361,7 +361,6 @@ EXPORTED_SYM FUNC *FindAllFunctionsByLibraryName_uncached(HIJACK *hijack, char *
 FUNC *FindFunctionInLibraryByName_freebsd(HIJACK *hijack, char *libname, char *funcname)
 {
     FUNC *ret=NULL, *next, *prev;
-    struct Struct_Obj_Entry *soe;
 
     FindAllFunctionsByLibraryName_uncached(hijack, libname);
 

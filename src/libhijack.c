@@ -186,6 +186,11 @@ EXPORTED_SYM int AssignPid(HIJACK *hijack, pid_t pid)
 EXPORTED_SYM int Attach(HIJACK *hijack)
 {
 	int status;
+#if defined(FreeBSD)
+    int nullarg = 0;
+#else
+    void *nullarg = NULL;
+#endif
 	
 	if (IsAttached(hijack))
 		return SetError(hijack, ERROR_ATTACHED);
@@ -196,7 +201,7 @@ EXPORTED_SYM int Attach(HIJACK *hijack)
 	if (IsFlagSet(hijack, F_DEBUG))
 		fprintf(stderr, "[*] Attaching...\n");
 	
-	if (ptrace(PTRACE_ATTACH, hijack->pid, NULL, NULL) < 0)
+	if (ptrace(PTRACE_ATTACH, hijack->pid, NULL, nullarg) < 0)
 		return SetError(hijack, ERROR_SYSCALL);
 	
 	do {
@@ -221,10 +226,16 @@ EXPORTED_SYM int Attach(HIJACK *hijack)
  */
 EXPORTED_SYM int Detach(HIJACK *hijack)
 {
+#if defined(FreeBSD)
+    int nullarg = 0;
+#else
+    void *nullarg = NULL;
+#endif
+
 	if (IsAttached(hijack) == false)
 		return SetError(hijack, ERROR_NOTATTACHED);
 	
-	if (ptrace(PTRACE_DETACH, hijack->pid, NULL, NULL) < 0)
+	if (ptrace(PTRACE_DETACH, hijack->pid, NULL, nullarg) < 0)
 		return SetError(hijack, ERROR_SYSCALL);
 	
 	hijack->isAttached = false;
@@ -252,7 +263,7 @@ EXPORTED_SYM int LocateSystemCall(HIJACK *hijack)
     soe = hijack->soe;
     do {
         freebsd_parse_soe(hijack, soe, syscall_callback);
-    } while ((soe = read_data(hijack, soe->next, sizeof(struct Struct_Obj_Entry))) != NULL);
+    } while ((soe = read_data(hijack, (unsigned long)(soe->next), sizeof(struct Struct_Obj_Entry))) != NULL);
 #else
 	map = hijack->linkhead;
 	do {
@@ -366,7 +377,7 @@ EXPORTED_SYM REGS *GetRegs(HIJACK *hijack)
 		return NULL;
 	
 #if defined(FreeBSD)
-    if (ptrace(PTRACE_GETREGS, hijack->pid, ret, 0)) {
+    if (ptrace(PTRACE_GETREGS, hijack->pid, (caddr_t)ret, 0)) {
 #else
 	if (ptrace(PTRACE_GETREGS, hijack->pid, NULL, ret) < 0) {
 #endif
@@ -390,7 +401,7 @@ EXPORTED_SYM int SetRegs(HIJACK *hijack, REGS *regs)
 		return SetError(hijack, ERROR_NOTATTACHED);
 	
 #if defined(FreeBSD)
-    if (ptrace(PTRACE_SETREGS, hijack->pid, regs, 0) < 0)
+    if (ptrace(PTRACE_SETREGS, hijack->pid, (caddr_t)regs, 0) < 0)
 #else
 	if (ptrace(PTRACE_SETREGS, hijack->pid, NULL, regs) < 0)
 #endif

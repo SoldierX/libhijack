@@ -70,15 +70,6 @@ int main(int argc, char *argv[])
     close(fd);
 	
 	LocateAllFunctions(hijack);
-	funcs = FindFunctionInLibraryByName(hijack, "/lib/libc.so.7", "dlopen");
-	if (!(funcs))
-	{
-		fprintf(stderr, "[-] Couldn't locate dlopen!\n");
-        Detach(hijack);
-		exit(EXIT_FAILURE);
-	}
-	dlopen_addr = funcs->vaddr;
-
     sym = resolv_rtld_sym(hijack, "dlopen");
     if (!(sym)) {
         fprintf(stderr, "[-] Could not locate dlopen inside the RTLD\n");
@@ -86,17 +77,8 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
     dlopen_addr = sym->p.ulp;
-
 	printf("dlopen_addr: 0x%016lx\n", sym->p.ulp);
 	
-	funcs = FindFunctionInLibraryByName(hijack, "/lib/libc.so.7", "dlsym");
-	if (!(funcs))
-	{
-		fprintf(stderr, "[-] Couldn't locate dlsym!\n");
-        Detach(hijack);
-		exit(EXIT_FAILURE);
-	}
-	dlsym_addr = funcs->vaddr;
     sym = resolv_rtld_sym(hijack, "dlsym");
     if (!(sym)) {
         fprintf(stderr, "[-] Could not locate dlsym inside the RTLD\n");
@@ -107,6 +89,25 @@ int main(int argc, char *argv[])
 	printf("dlsym_addr: 0x%016lx\n", dlsym_addr);
 	
 	memcpy(regs, backup, sizeof(REGS));
+
+    /* Ensure we can find the function reference before trying to map memory and perform the hooks */
+	funcs = FindAllFunctionsByName(hijack, argv[4], false);
+	for (func = funcs; func != NULL; func = func->next)
+	{
+		if (!(func->name))
+			continue;
+		
+		pltgot_addr = FindFunctionInGot(hijack, hijack->pltgot, func->vaddr);
+		if (pltgot_addr > 0)
+			break;
+	}
+    if (!pltgot_addr) {
+        fprintf(stderr, "[-] Could not find function reference in the PLT/GOT.\n");
+        Detach(hijack);
+        exit(1);
+    }
+	
+	printf("pltgot_addr: 0x%08lx\n", pltgot_addr);
 	
 	LocateSystemCall(hijack);
 	filename_addr = MapMemory(hijack, (unsigned long)NULL, 4096,PROT_READ | PROT_EXEC | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE);
@@ -155,19 +156,6 @@ int main(int argc, char *argv[])
     }
     if (!noaddr)
         memcpy(p1, &dlsym_addr, 8);
-	
-	funcs = FindAllFunctionsByName(hijack, argv[4], false);
-	for (func = funcs; func != NULL; func = func->next)
-	{
-		if (!(func->name))
-			continue;
-		
-		pltgot_addr = FindFunctionInGot(hijack, hijack->pltgot, func->vaddr);
-		if (pltgot_addr > 0)
-			break;
-	}
-	
-	printf("pltgot_addr: 0x%08lx\n", pltgot_addr);
 	
 	p1 = memmem(shellcode, sb.st_size, "\x66\x66\x66\x66\x66\x66\x66\x66", 8);
     if (!(p1)) {

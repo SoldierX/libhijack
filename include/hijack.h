@@ -97,7 +97,7 @@ typedef struct _hijack {
 		ElfW(Phdr) *phdr;
 	} phdr;
 	
-	struct user_regs_struct *backup_regs;
+	REGS *backup_regs;
 	
 	unsigned long pltgot;
 	struct link_map *linkhead;

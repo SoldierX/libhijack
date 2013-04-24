@@ -203,7 +203,7 @@ int rtld_create_maps(HIJACK *hijack, struct rtld_aux *aux) {
                 bss = _hijack_malloc(hijack, nclear);
                 if (!(bss))
                     return -1;
-                err = WriteData(hijack, bss_addr, bss, nclear);
+                err = WriteData(hijack, bss_addr, (unsigned char *)bss, nclear);
                 free(bss);
 
                 if (IsFlagSet(hijack, F_DEBUG) && IsFlagSet(hijack, F_DEBUG_VERBOSE)) {
@@ -232,11 +232,11 @@ int rtld_hook_into_rtld(HIJACK *hijack, struct rtld_aux *aux)
 
 
     soe.phsize = aux->ehdr.ehdr->e_phnum * sizeof(ElfW(Phdr));
-    soe.mapbase = aux->mapping;
+    soe.mapbase = (caddr_t)(aux->mapping);
     soe.mapsize = aux->mapsize;
     soe.textsize = round_page(aux->loadables->phdr.phdr->p_vaddr + aux->loadables->phdr.phdr->p_memsz) - aux->base_vaddr;
     soe.vaddrbase = aux->base_vaddr;
-    soe.relocbase = aux->mapping - aux->base_vaddr;
+    soe.relocbase = (caddr_t)(aux->mapping - aux->base_vaddr);
     soe.dynamic = (ElfW(Dyn) *)(soe.relocbase + aux->phdyn->p_vaddr);
     if (aux->ehdr.ehdr->e_entry)
         soe.entry = soe.relocbase + aux->ehdr.ehdr->e_entry;
@@ -247,7 +247,7 @@ int rtld_hook_into_rtld(HIJACK *hijack, struct rtld_aux *aux)
         if (!(soe.phdr))
             return -1;
 
-        memcpy(soe.phdr, aux->ehdr.ptr + aux->ehdr.ehdr->e_phoff, soe.phsize);
+        memcpy((void *)(soe.phdr), (void *)(aux->ehdr.ptr + aux->ehdr.ehdr->e_phoff), soe.phsize);
         soe.phdr_alloc = true;
     }
     if ((aux->phinterp))
@@ -262,11 +262,11 @@ int rtld_hook_into_rtld(HIJACK *hijack, struct rtld_aux *aux)
     /* Create auxiliary mapping and write the Struct_Obj_Entry */
     aux->auxmap = MapMemory(hijack, (unsigned long)NULL, getpagesize(), PROT_READ | PROT_WRITE | PROT_EXEC, MAP_ANON | MAP_SHARED);
     if (soe.phdr_alloc) {
-        if (WriteData(hijack, aux->auxmap + sizeof(struct Struct_Obj_Entry), soe.phdr, soe.phsize) != ERROR_NONE)
+        if (WriteData(hijack, aux->auxmap + sizeof(struct Struct_Obj_Entry), (unsigned char *)(soe.phdr), soe.phsize) != ERROR_NONE)
             return -1;
 
-        free(soe.phdr);
-        soe.phdr = aux->auxmap + sizeof(struct Struct_Obj_Entry);
+        free((void *)(soe.phdr));
+        soe.phdr = (ElfW(Phdr) *)(aux->auxmap + sizeof(struct Struct_Obj_Entry));
         soe.phdr_alloc = false;
     }
 
@@ -323,7 +323,7 @@ int append_soe(HIJACK *hijack, unsigned long addr, struct Struct_Obj_Entry *soe)
 
     if (IsFlagSet(hijack, F_DEBUG_VERBOSE)) {
         fprintf(stderr, "[*] append_soe: prev soe: 0x%016lx\n", last_soe_addr);
-        fprintf(stderr, "[*] append_soe: realsoe->next: 0x%016lx\n", realsoe->next);
+        fprintf(stderr, "[*] append_soe: realsoe->next: 0x%016lx\n", (unsigned long)(realsoe->next));
     }
 
     memset(soe, 0xff, sizeof(struct Struct_Obj_Entry));
@@ -346,9 +346,9 @@ int append_soe(HIJACK *hijack, unsigned long addr, struct Struct_Obj_Entry *soe)
         soe->gnu_ifunc = 0;
 
     soe->next = realsoe->next;
-    realsoe->next = addr;
-    WriteData(hijack, (unsigned long)(addr), soe, sizeof(struct Struct_Obj_Entry));
-    WriteData(hijack, (unsigned long)(last_soe_addr), realsoe, sizeof(struct Struct_Obj_Entry));
+    realsoe->next = (struct Struct_Obj_Entry *)addr;
+    WriteData(hijack, (unsigned long)(addr), (unsigned char *)soe, sizeof(struct Struct_Obj_Entry));
+    WriteData(hijack, (unsigned long)(last_soe_addr), (unsigned char *)realsoe, sizeof(struct Struct_Obj_Entry));
 
     return 0;
 }
@@ -356,9 +356,6 @@ int append_soe(HIJACK *hijack, unsigned long addr, struct Struct_Obj_Entry *soe)
 EXPORTED_SYM int load_library(HIJACK *hijack, char *path)
 {
     struct rtld_aux aux;
-    unsigned long addr;
-    struct Struct_Obj_Entry *soe=NULL;
-    char *name=NULL;
 
     memset(&aux, 0x00, sizeof(struct rtld_aux));
 

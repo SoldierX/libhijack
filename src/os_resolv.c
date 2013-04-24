@@ -43,7 +43,7 @@
 unsigned long find_rtld_linkmap(HIJACK *hijack)
 {
     struct link_map *l, *p=NULL;
-    unsigned long addr=NULL;
+    unsigned long addr=(unsigned long)NULL;
 
     if (!(hijack) || !(hijack->soe))
         return (unsigned long)NULL;
@@ -55,7 +55,7 @@ unsigned long find_rtld_linkmap(HIJACK *hijack)
             free(p);
 
         p = l;
-        l = read_data(hijack, l->l_next, sizeof(struct link_map));
+        l = read_data(hijack, (unsigned long)(l->l_next), sizeof(struct link_map));
         if (!(l))
             return (unsigned long)NULL;
     }
@@ -88,7 +88,6 @@ EXPORTED_SYM RTLD_SYM *resolv_rtld_sym(HIJACK *hijack, char *name)
     void *buf;
     int fd;
     struct stat sb;
-    char *symname;
     char *strtab;
     ElfW(Sym) *symtab=NULL;
     ElfW(Ehdr) *ehdr=NULL;
@@ -105,7 +104,7 @@ EXPORTED_SYM RTLD_SYM *resolv_rtld_sym(HIJACK *hijack, char *name)
     if (!(l))
         return NULL;
 
-    path = read_str(hijack, l->l_name);
+    path = read_str(hijack, (unsigned long)(l->l_name));
     if (!(path))
         return NULL;
 

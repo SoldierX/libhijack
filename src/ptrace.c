@@ -78,14 +78,16 @@ int write_data(HIJACK *hijack, unsigned long start, void *buf, size_t sz)
 	size_t i=0;
 #if defined(FreeBSD)
     int word;
+    int nullarg = 0;
 #else
 	unsigned long word;
+    void *nullarg = NULL;
 #endif
 	int err = ERROR_NONE;
 	
 	while (i < sz) {
 		if (i + sizeof(word) > sz) {
-			word = ptrace(PTRACE_PEEKTEXT, hijack->pid, (void *)(start + i), NULL);
+			word = ptrace(PTRACE_PEEKTEXT, hijack->pid, (void *)(start + i), nullarg);
 			memcpy(&word, (void *)((unsigned char *)buf + i), sz-i);
 		} else {
 			memcpy(&word, (void *)((unsigned char *)buf + i), sizeof(word));

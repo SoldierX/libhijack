@@ -128,7 +128,6 @@ void freebsd_parse_soe(HIJACK *hijack, struct Struct_Obj_Entry *soe, linkmap_cal
     int err=0;
     ElfW(Sym) *libsym=NULL;
     unsigned long numsyms, symaddr=0, i=0;
-    ElfW(Dyn) *libdyn=NULL;
     char *name;
 
     numsyms = soe->nchains;
@@ -362,7 +361,7 @@ unsigned long find_func_addr_in_got(HIJACK *hijack, unsigned long pltaddr, unsig
 
         p = read_data(hijack, pltaddr + ((++i) * sizeof(unsigned long)), sizeof(unsigned long));
         if (!(p))
-            return NULL;
+            return (unsigned long)NULL;
 
         got_data = *((unsigned long *)p);
     }
