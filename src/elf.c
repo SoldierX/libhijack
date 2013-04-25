@@ -90,7 +90,8 @@ unsigned long find_pltgot(HIJACK *hijack)
 
 /*
  * On FreeBSD, the linkmap isn't a big deal. We use the Struct_Obj_Entry object,
- * which is still conveniently located at GOT[1].
+ * which is still conveniently located at GOT[1]. The linkmap is only used when
+ * resolving symbols within the RTLD.
  */
 unsigned long find_link_map_addr(HIJACK *hijack)
 {
@@ -99,10 +100,15 @@ unsigned long find_link_map_addr(HIJACK *hijack)
     
 #if defined(FreeBSD)
     addr = read_data(hijack, hijack->pltgot + (sizeof(unsigned long)), sizeof(unsigned long));
+    if (!(addr))
+        return (unsigned long)NULL;
+
     if (IsFlagSet(hijack, F_DEBUG) && IsFlagSet(hijack, F_DEBUG_VERBOSE))
         fprintf(stderr, "[*] find_link_map_addr: First Struct_Obj_Entry: 0x%016lx\n", *addr);
+
     hijack->soe = read_data(hijack, *addr, sizeof(struct Struct_Obj_Entry));
     free(addr);
+
     return (unsigned long)NULL;
 #endif
     addr = read_data(hijack, hijack->pltgot + sizeof(unsigned long), sizeof(unsigned long));
@@ -133,6 +139,7 @@ void freebsd_parse_soe(HIJACK *hijack, struct Struct_Obj_Entry *soe, linkmap_cal
     numsyms = soe->nchains;
     symaddr = (unsigned long)(soe->symtab);
 
+    /* With the SOE, our goal is the same as with Linux's linkmap: resolve hijackable symbols (functions). */
     do
     {
         if ((libsym))
@@ -188,14 +195,15 @@ void parse_linkmap(HIJACK *hijack, struct link_map *linkmap, linkmap_callback ca
     if (!(linkmap))
         return;
     
+    /* Find the name of this library */
     libname = read_str(hijack, (unsigned long)(linkmap->l_name));
     if (IsFlagSet(hijack, F_DEBUG) && IsFlagSet(hijack, F_DEBUG_VERBOSE)) {
         fprintf(stderr, "[*] parse_linkmap: linkmap->l_name: 0x%16lx\n", (unsigned long)(linkmap->l_name));
         fprintf(stderr, "[*] parse_linkmap: linkmap->l_ld: 0x%16lx\n", (unsigned long)(linkmap->l_ld));
     }
 
-
     if (!(libname) || !strlen(libname)) {
+        /* No name? Something went wrong */
         if ((libname))
             free(libname);
 
@@ -203,6 +211,7 @@ void parse_linkmap(HIJACK *hijack, struct link_map *linkmap, linkmap_callback ca
         goto notfound;
     }
     
+    /* Look for the dynamic structures. We're mainly interested in the strtab, symtab, and symbol hash table  */
     dynaddr = (unsigned long)(linkmap->l_ld);
     do {
         if (libdyn)
@@ -235,6 +244,7 @@ void parse_linkmap(HIJACK *hijack, struct link_map *linkmap, linkmap_callback ca
         goto notfound;
     }
     
+    /* Calculate the number of symbols loaded */
     hashtable += sizeof(ElfW(Word));
     memcpy(&numsyms, read_data(hijack, hashtable, sizeof(ElfW(Word))), sizeof(ElfW(Word)));
 
@@ -243,6 +253,7 @@ void parse_linkmap(HIJACK *hijack, struct link_map *linkmap, linkmap_callback ca
     
     symaddr += sizeof(ElfW(Sym));
     
+    /* Loop through all the symbols. We're currently only interested in functions. Call the callback on successful resolution of a function. */
     do {
         if ((libsym))
             free(libsym);
@@ -260,7 +271,7 @@ void parse_linkmap(HIJACK *hijack, struct link_map *linkmap, linkmap_callback ca
         
         name = read_str(hijack, (unsigned long)(libstrtab + libsym->st_name));
         if ((name)) {
-            /* XXX name should be cleaned up. Callback should duplicate (strdup) the name if needed... */
+            /* Callback should strdup the name if it needs it. */
             if (callback(hijack, linkmap, name, ((unsigned long)(linkmap->l_addr) + libsym->st_value), (size_t)(libsym->st_size)) != CONTPROC) {
                 free(name);
                 break;
@@ -312,6 +323,7 @@ unsigned long search_mem(HIJACK *hijack, unsigned long funcaddr, size_t funcsz, 
 
 int init_hijack_system(HIJACK *hijack)
 {
+    /* This probably ought to be in libhijack.c */
     if (!IsAttached(hijack))
         return SetError(hijack, ERROR_NOTATTACHED);
     
@@ -351,6 +363,7 @@ unsigned long find_func_addr_in_got(HIJACK *hijack, unsigned long pltaddr, unsig
 
     i = 1;
     while (got_data > 0) {
+        /* There isn't a way for us to see how big the GOT is. We simply stop on the first NULL value. */
         free(p);
 
         if (got_data == addr)
