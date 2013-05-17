@@ -21,10 +21,12 @@
     #endif
 #elif defined(Linux)
     #if defined(i686)
+    #define ELF_ST_TYPE ELF32_ST_TYPE
     	#define BASEADDR 0x08048000
     	#define SYSCALLSEARCH "\xcd\x80"
     	#define MMAPSYSCALL 90
     #elif defined(x86_64)
+        #define ELF_ST_TYPE ELF64_ST_TYPE
     	#define BASEADDR 0x00400000
     	#define SYSCALLSEARCH "\x0f\x05"
     	/* #define SYSCALLSEARCH "\xcd\x80" */

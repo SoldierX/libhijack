@@ -14,5 +14,6 @@
 #define _HIJACK_MISC_H
 
 void *_hijack_malloc(HIJACK *, size_t);
+void _hijack_free(HIJACK *, void *, size_t);
 
 #endif

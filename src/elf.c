@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Shawn Webb
+ * Copyright (c) 2011-2013, Shawn Webb
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -55,8 +55,7 @@ unsigned long find_pltgot(HIJACK *hijack)
     if (IsFlagSet(hijack, F_DEBUG))
         fprintf(stderr, "[*] Attempting to find PLT/GOT\n");
     
-    for (i=0; i<hijack->ehdr.ehdr->e_phnum; i++)
-    {
+    for (i=0; i<hijack->ehdr.ehdr->e_phnum; i++) {
         if (hijack->phdr.phdr[i].p_type == PT_DYNAMIC)
         {
             dyn = (ElfW(Dyn) *)read_data(hijack, (unsigned long)(hijack->phdr.phdr[i].p_vaddr), hijack->phdr.phdr[i].p_memsz);
@@ -64,8 +63,7 @@ unsigned long find_pltgot(HIJACK *hijack)
         }
     }
     
-    if (!(dyn))
-    {
+    if (!(dyn)) {
         if (IsFlagSet(hijack, F_DEBUG))
             fprintf(stderr, "[*] Could not locate DYNAMIC PHDR!\n");
         
@@ -90,6 +88,11 @@ unsigned long find_pltgot(HIJACK *hijack)
     return (unsigned long)NULL;
 }
 
+/*
+ * On FreeBSD, the linkmap isn't a big deal. We use the Struct_Obj_Entry object,
+ * which is still conveniently located at GOT[1]. The linkmap is only used when
+ * resolving symbols within the RTLD.
+ */
 unsigned long find_link_map_addr(HIJACK *hijack)
 {
     unsigned long *addr;
@@ -97,10 +100,15 @@ unsigned long find_link_map_addr(HIJACK *hijack)
     
 #if defined(FreeBSD)
     addr = read_data(hijack, hijack->pltgot + (sizeof(unsigned long)), sizeof(unsigned long));
+    if (!(addr))
+        return (unsigned long)NULL;
+
     if (IsFlagSet(hijack, F_DEBUG) && IsFlagSet(hijack, F_DEBUG_VERBOSE))
-        fprintf(stderr, "[*] find_link_map_addr: First Struct_Obj_Entry: 0x%16lx\n", *addr);
+        fprintf(stderr, "[*] find_link_map_addr: First Struct_Obj_Entry: 0x%016lx\n", *addr);
+
     hijack->soe = read_data(hijack, *addr, sizeof(struct Struct_Obj_Entry));
     free(addr);
+
     return (unsigned long)NULL;
 #endif
     addr = read_data(hijack, hijack->pltgot + sizeof(unsigned long), sizeof(unsigned long));
@@ -126,12 +134,12 @@ void freebsd_parse_soe(HIJACK *hijack, struct Struct_Obj_Entry *soe, linkmap_cal
     int err=0;
     ElfW(Sym) *libsym=NULL;
     unsigned long numsyms, symaddr=0, i=0;
-    ElfW(Dyn) *libdyn=NULL;
     char *name;
 
     numsyms = soe->nchains;
     symaddr = (unsigned long)(soe->symtab);
 
+    /* With the SOE, our goal is the same as with Linux's linkmap: resolve hijackable symbols (functions). */
     do
     {
         if ((libsym))
@@ -187,14 +195,15 @@ void parse_linkmap(HIJACK *hijack, struct link_map *linkmap, linkmap_callback ca
     if (!(linkmap))
         return;
     
+    /* Find the name of this library */
     libname = read_str(hijack, (unsigned long)(linkmap->l_name));
     if (IsFlagSet(hijack, F_DEBUG) && IsFlagSet(hijack, F_DEBUG_VERBOSE)) {
         fprintf(stderr, "[*] parse_linkmap: linkmap->l_name: 0x%16lx\n", (unsigned long)(linkmap->l_name));
         fprintf(stderr, "[*] parse_linkmap: linkmap->l_ld: 0x%16lx\n", (unsigned long)(linkmap->l_ld));
     }
 
-
     if (!(libname) || !strlen(libname)) {
+        /* No name? Something went wrong */
         if ((libname))
             free(libname);
 
@@ -202,14 +211,14 @@ void parse_linkmap(HIJACK *hijack, struct link_map *linkmap, linkmap_callback ca
         goto notfound;
     }
     
+    /* Look for the dynamic structures. We're mainly interested in the strtab, symtab, and symbol hash table  */
     dynaddr = (unsigned long)(linkmap->l_ld);
     do {
         if (libdyn)
             free(libdyn);
 
         libdyn = (ElfW(Dyn) *)read_data(hijack, (unsigned long)dynaddr, sizeof(ElfW(Dyn)));
-        if (!(libdyn))
-        {
+        if (!(libdyn)) {
             err = GetErrorCode(hijack);
             goto notfound;
         }
@@ -235,6 +244,7 @@ void parse_linkmap(HIJACK *hijack, struct link_map *linkmap, linkmap_callback ca
         goto notfound;
     }
     
+    /* Calculate the number of symbols loaded */
     hashtable += sizeof(ElfW(Word));
     memcpy(&numsyms, read_data(hijack, hashtable, sizeof(ElfW(Word))), sizeof(ElfW(Word)));
 
@@ -243,67 +253,36 @@ void parse_linkmap(HIJACK *hijack, struct link_map *linkmap, linkmap_callback ca
     
     symaddr += sizeof(ElfW(Sym));
     
-    #if defined(i686)
-        do {
-            if ((libsym))
-                free(libsym);
+    /* Loop through all the symbols. We're currently only interested in functions. Call the callback on successful resolution of a function. */
+    do {
+        if ((libsym))
+            free(libsym);
 
-            libsym = (ElfW(Sym) *)read_data(hijack, (unsigned long)symaddr, sizeof(ElfW(Sym)));
-            if (!(libsym)) {
-                err = GetErrorCode(hijack);
-                goto notfound;
-            }
-            
-            if (ELF32_ST_TYPE(libsym->st_info) != STT_FUNC) {
-                symaddr += sizeof(ElfW(Sym));
-                continue;
-            }
-            
-            name = read_str(hijack, (unsigned long)(libstrtab + libsym->st_name));
-            if ((name)) {
-                /* XXX name should be cleaned up. Callback should duplicate (strdup) the name if needed... */
-                if (callback(hijack, linkmap, name, ((unsigned long)(linkmap->l_addr) + libsym->st_value), (size_t)(libsym->st_size)) != CONTPROC) {
-                    free(name);
-                    break;
-                }
-                
-                free(name);
-            }
-            
+        libsym = (ElfW(Sym) *)read_data(hijack, (unsigned long)symaddr, sizeof(ElfW(Sym)));
+        if (!(libsym)) {
+            err = GetErrorCode(hijack);
+            goto notfound;
+        }
+        
+        if (ELF_ST_TYPE(libsym->st_info) != STT_FUNC) {
             symaddr += sizeof(ElfW(Sym));
-        } while (i++ < numsyms);
-    #elif defined(x86_64)
-        do {
-            if ((libsym))
-                free(libsym);
-
-            libsym = (ElfW(Sym) *)read_data(hijack, (unsigned long)symaddr, sizeof(ElfW(Sym)));
-            if (!(libsym))
-            {
-                err = GetErrorCode(hijack);
-                goto notfound;
-            }
-            
-            if (ELF64_ST_TYPE(libsym->st_info) != STT_FUNC)
-            {
-                symaddr += sizeof(ElfW(Sym));
-                continue;
-            }
-            
-            name = read_str(hijack, (unsigned long)(libstrtab + libsym->st_name));
-            if ((name)) {
-                if (callback(hijack, linkmap, name, ((unsigned long)(linkmap->l_addr) + libsym->st_value), (size_t)(libsym->st_size)) != CONTPROC) {
-                    free(name);
-                    break;
-                }
-
+            continue;
+        }
+        
+        name = read_str(hijack, (unsigned long)(libstrtab + libsym->st_name));
+        if ((name)) {
+            /* Callback should strdup the name if it needs it. */
+            if (callback(hijack, linkmap, name, ((unsigned long)(linkmap->l_addr) + libsym->st_value), (size_t)(libsym->st_size)) != CONTPROC) {
                 free(name);
+                break;
             }
             
-            symaddr += sizeof(ElfW(Sym));
-        } while (i++ < numsyms);
-    #endif
-    
+            free(name);
+        }
+        
+        symaddr += sizeof(ElfW(Sym));
+    } while (i++ < numsyms);
+   
 notfound:
     SetError(hijack, err);
 }
@@ -344,6 +323,7 @@ unsigned long search_mem(HIJACK *hijack, unsigned long funcaddr, size_t funcsz, 
 
 int init_hijack_system(HIJACK *hijack)
 {
+    /* This probably ought to be in libhijack.c */
     if (!IsAttached(hijack))
         return SetError(hijack, ERROR_NOTATTACHED);
     
@@ -370,30 +350,36 @@ unsigned long find_func_addr_in_got(HIJACK *hijack, unsigned long pltaddr, unsig
     unsigned long got_data;
     unsigned int i;
     
-    if (!IsAttached(hijack))
-    {
+    if (!IsAttached(hijack)) {
         SetError(hijack, ERROR_NOTATTACHED);
         return 0;
     }
     
-    /* XXX Assume that read_data won't error out, possible NULL pointer dereference */
     p = read_data(hijack, pltaddr, sizeof(unsigned long));
+    if (!(p))
+        return (unsigned long)NULL;
+
     got_data = *((unsigned long *)p);
+
     i = 1;
-    while (got_data > 0)
-    {
+    while (got_data > 0) {
+        /* There isn't a way for us to see how big the GOT is. We simply stop on the first NULL value. */
         free(p);
 
         if (got_data == addr)
             break;
+
         if (IsFlagSet(hijack, F_DEBUG_VERBOSE))
             fprintf(stderr, "[*] got[%u]: 0x%08lx\n", i, got_data);
+
         p = read_data(hijack, pltaddr + ((++i) * sizeof(unsigned long)), sizeof(unsigned long));
+        if (!(p))
+            return (unsigned long)NULL;
+
         got_data = *((unsigned long *)p);
     }
     
-    if (!got_data)
-    {
+    if (!got_data) {
         SetError(hijack, ERROR_NEEDED);
         return 0;
     }

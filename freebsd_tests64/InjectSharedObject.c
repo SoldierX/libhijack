@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2011-2013, Shawn Webb
+ * All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+ * 
+ *    * Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+ *    * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,6 +24,7 @@
 
 #include <hijack.h>
 #include <hijack_func.h>
+#include "os_resolv.h"
 
 void usage(const char *name)
 {
@@ -29,13 +42,16 @@ int main(int argc, char *argv[])
 	int fd;
 	REGS *regs, *backup;
     int noaddr=0;
+    RTLD_SYM *sym;
 	
 	if (argc != 5)
 		usage(argv[0]);
 	
 	hijack = InitHijack();
+#if 0
     ToggleFlag(hijack, F_DEBUG);
     ToggleFlag(hijack, F_DEBUG_VERBOSE);
+#endif
 	AssignPid(hijack, atoi(argv[1]));
 	
 	if (Attach(hijack) != ERROR_NONE)
@@ -68,27 +84,44 @@ int main(int argc, char *argv[])
     close(fd);
 	
 	LocateAllFunctions(hijack);
-	funcs = FindFunctionInLibraryByName(hijack, "/lib/libc.so.7", "dlopen");
-	if (!(funcs))
-	{
-		fprintf(stderr, "[-] Couldn't locate dlopen!\n");
+    sym = resolv_rtld_sym(hijack, "dlopen");
+    if (!(sym)) {
+        fprintf(stderr, "[-] Could not locate dlopen inside the RTLD\n");
         Detach(hijack);
-		exit(EXIT_FAILURE);
-	}
-	dlopen_addr = funcs->vaddr;
-	printf("dlopen_addr: 0x%016lx\n", dlopen_addr);
+        exit(EXIT_FAILURE);
+    }
+    dlopen_addr = sym->p.ulp;
+	printf("dlopen_addr: 0x%016lx\n", sym->p.ulp);
 	
-	funcs = FindFunctionInLibraryByName(hijack, "/lib/libc.so.7", "dlsym");
-	if (!(funcs))
-	{
-		fprintf(stderr, "[-] Couldn't locate dlsym!\n");
+    sym = resolv_rtld_sym(hijack, "dlsym");
+    if (!(sym)) {
+        fprintf(stderr, "[-] Could not locate dlsym inside the RTLD\n");
         Detach(hijack);
-		exit(EXIT_FAILURE);
-	}
-	dlsym_addr = funcs->vaddr;
+        exit(EXIT_FAILURE);
+    }
+    dlsym_addr = sym->p.ulp;
 	printf("dlsym_addr: 0x%016lx\n", dlsym_addr);
 	
 	memcpy(regs, backup, sizeof(REGS));
+
+    /* Ensure we can find the function reference before trying to map memory and perform the hooks */
+	funcs = FindAllFunctionsByName(hijack, argv[4], false);
+	for (func = funcs; func != NULL; func = func->next)
+	{
+		if (!(func->name))
+			continue;
+		
+		pltgot_addr = FindFunctionInGot(hijack, hijack->pltgot, func->vaddr);
+		if (pltgot_addr > 0)
+			break;
+	}
+    if (!pltgot_addr) {
+        fprintf(stderr, "[-] Could not find function reference in the PLT/GOT.\n");
+        Detach(hijack);
+        exit(1);
+    }
+	
+	printf("pltgot_addr: 0x%08lx\n", pltgot_addr);
 	
 	LocateSystemCall(hijack);
 	filename_addr = MapMemory(hijack, (unsigned long)NULL, 4096,PROT_READ | PROT_EXEC | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE);
@@ -137,19 +170,6 @@ int main(int argc, char *argv[])
     }
     if (!noaddr)
         memcpy(p1, &dlsym_addr, 8);
-	
-	funcs = FindAllFunctionsByName(hijack, argv[4], false);
-	for (func = funcs; func != NULL; func = func->next)
-	{
-		if (!(func->name))
-			continue;
-		
-		pltgot_addr = FindFunctionInGot(hijack, hijack->pltgot, func->vaddr);
-		if (pltgot_addr > 0)
-			break;
-	}
-	
-	printf("pltgot_addr: 0x%08lx\n", pltgot_addr);
 	
 	p1 = memmem(shellcode, sb.st_size, "\x66\x66\x66\x66\x66\x66\x66\x66", 8);
     if (!(p1)) {

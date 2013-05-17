@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Shawn Webb
+ * Copyright (c) 2011-2013, Shawn Webb
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -45,8 +45,7 @@ EXPORTED_SYM int GetErrorCode(HIJACK *hijack)
  */
 EXPORTED_SYM const char *GetErrorString(HIJACK *hijack)
 {
-	switch (hijack->lastErrorCode)
-	{
+	switch (hijack->lastErrorCode) {
 		case ERROR_NONE:
 			return "No Error";
 		case ERROR_ATTACHED:
@@ -124,8 +123,7 @@ EXPORTED_SYM int ToggleFlag(HIJACK *hijack, unsigned int flag)
  */
 EXPORTED_SYM void *GetValue(HIJACK *hijack, int vkey)
 {
-	switch (vkey)
-	{
+	switch (vkey) {
 		case V_BASEADDR:
 			return &(hijack->baseaddr);
 		default:
@@ -142,8 +140,7 @@ EXPORTED_SYM void *GetValue(HIJACK *hijack, int vkey)
  */
 EXPORTED_SYM int SetValue(HIJACK *hijack, int vkey, void *value)
 {
-	switch (vkey)
-	{
+	switch (vkey) {
 		case V_BASEADDR:
 			memcpy(&(hijack->baseaddr), value, sizeof(unsigned long));
 			return SetError(hijack, ERROR_NONE);
@@ -189,6 +186,11 @@ EXPORTED_SYM int AssignPid(HIJACK *hijack, pid_t pid)
 EXPORTED_SYM int Attach(HIJACK *hijack)
 {
 	int status;
+#if defined(FreeBSD)
+    int nullarg = 0;
+#else
+    void *nullarg = NULL;
+#endif
 	
 	if (IsAttached(hijack))
 		return SetError(hijack, ERROR_ATTACHED);
@@ -199,11 +201,10 @@ EXPORTED_SYM int Attach(HIJACK *hijack)
 	if (IsFlagSet(hijack, F_DEBUG))
 		fprintf(stderr, "[*] Attaching...\n");
 	
-	if (ptrace(PTRACE_ATTACH, hijack->pid, NULL, NULL) < 0)
+	if (ptrace(PTRACE_ATTACH, hijack->pid, NULL, nullarg) < 0)
 		return SetError(hijack, ERROR_SYSCALL);
 	
-	do
-	{
+	do {
 		waitpid(hijack->pid, &status, 0);
 	} while (!WIFSTOPPED(status));
 	
@@ -225,10 +226,16 @@ EXPORTED_SYM int Attach(HIJACK *hijack)
  */
 EXPORTED_SYM int Detach(HIJACK *hijack)
 {
+#if defined(FreeBSD)
+    int nullarg = 0;
+#else
+    void *nullarg = NULL;
+#endif
+
 	if (IsAttached(hijack) == false)
 		return SetError(hijack, ERROR_NOTATTACHED);
 	
-	if (ptrace(PTRACE_DETACH, hijack->pid, NULL, NULL) < 0)
+	if (ptrace(PTRACE_DETACH, hijack->pid, NULL, nullarg) < 0)
 		return SetError(hijack, ERROR_SYSCALL);
 	
 	hijack->isAttached = false;
@@ -256,11 +263,10 @@ EXPORTED_SYM int LocateSystemCall(HIJACK *hijack)
     soe = hijack->soe;
     do {
         freebsd_parse_soe(hijack, soe, syscall_callback);
-    } while ((soe = read_data(hijack, soe->next, sizeof(struct Struct_Obj_Entry))) != NULL);
+    } while ((soe = read_data(hijack, (unsigned long)(soe->next), sizeof(struct Struct_Obj_Entry))) != NULL);
 #else
 	map = hijack->linkhead;
-	do
-	{
+	do {
 		parse_linkmap(hijack, map, syscall_callback);
 		if (hijack->syscalladdr)
 			break;
@@ -361,8 +367,7 @@ EXPORTED_SYM REGS *GetRegs(HIJACK *hijack)
 {
 	REGS *ret;
 	
-	if (!IsAttached(hijack))
-	{
+	if (!IsAttached(hijack)) {
 		SetError(hijack, ERROR_NOTATTACHED);
 		return NULL;
 	}
@@ -372,7 +377,7 @@ EXPORTED_SYM REGS *GetRegs(HIJACK *hijack)
 		return NULL;
 	
 #if defined(FreeBSD)
-    if (ptrace(PTRACE_GETREGS, hijack->pid, ret, 0)) {
+    if (ptrace(PTRACE_GETREGS, hijack->pid, (caddr_t)ret, 0)) {
 #else
 	if (ptrace(PTRACE_GETREGS, hijack->pid, NULL, ret) < 0) {
 #endif
@@ -396,7 +401,7 @@ EXPORTED_SYM int SetRegs(HIJACK *hijack, REGS *regs)
 		return SetError(hijack, ERROR_NOTATTACHED);
 	
 #if defined(FreeBSD)
-    if (ptrace(PTRACE_SETREGS, hijack->pid, regs, 0) < 0)
+    if (ptrace(PTRACE_SETREGS, hijack->pid, (caddr_t)regs, 0) < 0)
 #else
 	if (ptrace(PTRACE_SETREGS, hijack->pid, NULL, regs) < 0)
 #endif
@@ -415,4 +420,9 @@ EXPORTED_SYM int SetRegs(HIJACK *hijack, REGS *regs)
 EXPORTED_SYM unsigned long FindFunctionInGot(HIJACK *hijack, unsigned long pltaddr, unsigned long addr)
 {
 	return find_func_addr_in_got(hijack, pltaddr, addr);
+}
+
+EXPORTED_SYM int LoadLibrary(HIJACK *hijack, char *lib)
+{
+    return load_library(hijack, lib);
 }
