@@ -1,4 +1,4 @@
-TARGET=libhijack.so.0.6
+TARGET=libhijack.so.0.6.1
 SONAME=libhijack.so.0
 CC?=clang
 SRCS=libhijack.c error.c misc.c ptrace.c map.c elf.c func.c rtld.c os_resolv.c
