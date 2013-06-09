@@ -109,10 +109,20 @@ EXPORTED_SYM RTLD_SYM *resolv_rtld_sym(HIJACK *hijack, char *name)
     if (!(path))
         return NULL;
 
-    stat(path, &sb);
-    fd = open(path, O_RDONLY);
-    if (fd < 0)
+    if (stat(path, &sb) < 0) {
+        free(l);
+        free(path);
         return NULL;
+    }
+
+    fd = open(path, O_RDONLY);
+    if (fd < 0) {
+        free(l);
+        free(path);
+        return NULL;
+    }
+
+    free(path);
 
     buf = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
     if (buf == MAP_FAILED) {
@@ -149,14 +159,31 @@ EXPORTED_SYM RTLD_SYM *resolv_rtld_sym(HIJACK *hijack, char *name)
     }
 
     /* XXX This should _never_ happen with the RTLD */
-    if (!(dyn) || !(strtab))
+    if (!(dyn) || !(strtab)) {
+        munmap(buf, sb.st_size);
+        close(fd);
+        free(l);
         return NULL;
+    }
 
     for (i=0; i < symsz; i++) {
         if (!strcmp(name, strtab+symtab[i].st_name)) {
             sym = _hijack_malloc(hijack, sizeof(RTLD_SYM));
+            if (!(sym)) {
+                munmap(buf, sb.st_size);
+                close(fd);
+                free(l);
+                return NULL;
+            }
 
             sym->name = strdup(strtab+symtab[i].st_name);
+            if (!(sym->name)) {
+                munmap(buf, sb.st_size);
+                close(fd);
+                free(l);
+                free(sym);
+                return NULL;
+            }
             sym->p.ulp = (unsigned long)(l->l_addr + symtab[i].st_value);
             sym->sz = symtab[i].st_size;
 
@@ -177,6 +204,7 @@ EXPORTED_SYM RTLD_SYM *resolv_rtld_sym(HIJACK *hijack, char *name)
     /* If no match, sym will be NULL  */
     munmap(buf, sb.st_size);
     close(fd);
+    free(l);
     return sym;
 }
 #endif

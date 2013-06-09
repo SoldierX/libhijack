@@ -365,7 +365,13 @@ EXPORTED_SYM int load_library(HIJACK *hijack, char *path)
     memset(&aux, 0x00, sizeof(struct rtld_aux));
 
     aux.path = strdup(path);
-    stat(aux.path, &(aux.sb));
+    if (!(aux.path))
+        return SetError(hijack, ERROR_SYSCALL);
+
+    if (stat(aux.path, &(aux.sb)) < 0) {
+        free(aux.path);
+        return SetError(hijack, ERROR_SYSCALL);
+    }
 
     aux.fd = open(aux.path, O_RDONLY);
     if (aux.fd < 0)

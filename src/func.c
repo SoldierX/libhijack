@@ -184,8 +184,16 @@ EXPORTED_SYM PLT *GetAllPLTs(HIJACK *hijack)
 
 		if (!(plt)) {
 			plt = ret = malloc(sizeof(PLT));
+            if (!(plt)) {
+                SetError(hijack, ERROR_SYSCALL);
+                return NULL;
+            }
 		} else {
 			plt->next = malloc(sizeof(PLT));
+            if (!(plt->next)) {
+                SetError(hijack, ERROR_SYSCALL);
+                return NULL;
+            }
 			plt = plt->next;
 		}
 
