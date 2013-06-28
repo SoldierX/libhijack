@@ -7,7 +7,6 @@ all:
 	gmake FindSyscall
 	gmake MapMemory
 	gmake FindFunc
-	gmake InjectSharedObject
 	gmake pid
 
 clean:
