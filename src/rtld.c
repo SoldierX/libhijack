@@ -78,6 +78,8 @@ struct rtld_aux {
     ElfW(Phdr) *phtls;
     ElfW(Phdr) *phinterp;
 
+    ElfW(Dyn) *dyn;
+
     unsigned long phdr_vaddr;
     unsigned long phsize;
     unsigned long stack_flags;
@@ -122,6 +124,8 @@ void rtld_add_loadable(HIJACK *hijack, struct rtld_aux *aux, ElfW(Phdr) *phdr) {
 
 int rtld_load_headers(HIJACK *hijack, struct rtld_aux *aux) {
     unsigned long i;
+    Elf_Hashelt *hashtab;
+    unsigned int bloom_size32;
 
     aux->lmap = mmap(NULL, aux->sb.st_size, PROT_READ|PROT_WRITE, MAP_PRIVATE, aux->fd, 0);
     if (aux->lmap == MAP_FAILED) {
@@ -337,18 +341,22 @@ int append_soe(HIJACK *hijack, unsigned long addr, struct Struct_Obj_Entry *soe)
         soe->bind_now =
         soe->phdr_alloc =
         soe->z_origin =
-        soe->jmpslots_done =
+        /*soe->jmpslots_done =*/
         soe->z_nodelete =
         soe->z_noopen =
         soe->z_loadfltr =
         soe->z_nodeflib =
         soe->ref_nodel =
-        soe->init_scanned =
-        soe->dag_inited =
+        /*soe->init_scanned =*/
+        /*soe->dag_inited =*/
         soe->filtees_loaded =
+        /*soe->valid_hash_gnu =*/
+        /*soe->valid_hash_sysv =*/
         soe->irelative =
         soe->crt_no_init =
         soe->gnu_ifunc = 0;
+
+    soe->needed_filtees = NULL;
 
     soe->next = realsoe->next;
     realsoe->next = (struct Struct_Obj_Entry *)addr;
