@@ -22,9 +22,7 @@
     #include <machine/reg.h>
     #include "rtld.h"
 
-    #if defined(amd64)
-        #define ElfW(type) Elf64_##type
-    #endif
+    #define ElfW(type) __ElfN(type)
 
     #define PTRACE_ATTACH   PT_ATTACH
     #define PTRACE_DETACH   PT_DETACH
