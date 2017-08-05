@@ -92,7 +92,8 @@ struct rtld_aux {
 
 int append_soe(HIJACK *, unsigned long, struct Struct_Obj_Entry *);
 
-void rtld_add_loadable(HIJACK *hijack, struct rtld_aux *aux, ElfW(Phdr) *phdr) {
+void
+rtld_add_loadable(HIJACK *hijack, struct rtld_aux *aux, ElfW(Phdr) *phdr) {
     struct rtld_loadable *loadable;
 
     if ((aux->loadables)) {
@@ -113,7 +114,8 @@ void rtld_add_loadable(HIJACK *hijack, struct rtld_aux *aux, ElfW(Phdr) *phdr) {
     loadable->phdr.phdr = phdr;
 }
 
-int rtld_load_headers(HIJACK *hijack, struct rtld_aux *aux) {
+int
+rtld_load_headers(HIJACK *hijack, struct rtld_aux *aux) {
     unsigned long i;
 
     aux->lmap = mmap(NULL, aux->sb.st_size, PROT_READ|PROT_WRITE, MAP_PRIVATE, aux->fd, 0);
@@ -157,7 +159,9 @@ int rtld_load_headers(HIJACK *hijack, struct rtld_aux *aux) {
  * Actually load the shared object
  * Logic taken from freebsd/9-stable/libexec/rtld-elf/map_object.c
  */
-int rtld_create_maps(HIJACK *hijack, struct rtld_aux *aux) {
+int
+rtld_create_maps(HIJACK *hijack, struct rtld_aux *aux)
+{
     struct rtld_loadable *first_loadable, *last_loadable, *loadable;
     int err;
     char *bss;
@@ -219,7 +223,8 @@ int rtld_create_maps(HIJACK *hijack, struct rtld_aux *aux) {
     return 0;
 }
 
-int rtld_hook_into_rtld(HIJACK *hijack, struct rtld_aux *aux)
+int
+rtld_hook_into_rtld(HIJACK *hijack, struct rtld_aux *aux)
 {
     struct Struct_Obj_Entry soe;
     
@@ -275,7 +280,8 @@ int rtld_hook_into_rtld(HIJACK *hijack, struct rtld_aux *aux)
  * Find an approprite SOE entry to hook our injected SOE into:
  *      (oursoe->next = soe->next; soe->next = oursoe)
  */
-unsigned long find_appropriate_soe(HIJACK *hijack, struct Struct_Obj_Entry **retsoe) {
+unsigned long
+find_appropriate_soe(HIJACK *hijack, struct Struct_Obj_Entry **retsoe) {
     *retsoe = NULL;
 
     if (!(hijack) || !(hijack->soe)) {
@@ -307,7 +313,8 @@ unsigned long find_appropriate_soe(HIJACK *hijack, struct Struct_Obj_Entry **ret
 /*
  * Append our SOE in the middle.
  */
-int append_soe(HIJACK *hijack, unsigned long addr, struct Struct_Obj_Entry *soe) {
+int
+append_soe(HIJACK *hijack, unsigned long addr, struct Struct_Obj_Entry *soe) {
     struct Struct_Obj_Entry *realsoe=NULL;
     unsigned long last_soe_addr;
     void *ptr;
@@ -353,7 +360,8 @@ int append_soe(HIJACK *hijack, unsigned long addr, struct Struct_Obj_Entry *soe)
     return 0;
 }
 
-EXPORTED_SYM int load_library(HIJACK *hijack, char *path)
+EXPORTED_SYM int
+load_library(HIJACK *hijack, char *path)
 {
     struct rtld_aux aux;
 

@@ -166,36 +166,36 @@ FUNC *FindAllFunctionsByLibraryName(HIJACK *, char *);
 FUNC *FindFunctionInLibraryByName(HIJACK *hijack, char *, char *);
 PLT *GetAllPLTs(HIJACK *);
 
+RTLD_SYM *resolv_rtld_sym(HIJACK *, char *);
+
+void ClearError(HIJACK *);
+
+#ifdef HIJACK_INTERNAL
 int init_elf_headers(HIJACK *);
 unsigned long find_pltgot(struct _hijack *);
 unsigned long find_link_map_addr(HIJACK *);
-struct link_map *get_next_linkmap(HIJACK *, unsigned long);
 void freebsd_parse_soe(HIJACK *, struct Struct_Obj_Entry *, linkmap_callback);
-void parse_linkmap(HIJACK *, struct link_map *, linkmap_callback);
-unsigned long search_mem(HIJACK *, unsigned long, size_t, void *, size_t);
-
 CBRESULT syscall_callback(HIJACK *, void *, char *, unsigned long, size_t);
-
+unsigned long search_mem(HIJACK *, unsigned long, size_t, void *, size_t);
 int init_hijack_system(HIJACK *);
-
 unsigned long find_func_addr_in_got(HIJACK *, unsigned long, unsigned long);
 
-void *read_data(struct _hijack *, unsigned long, size_t);
-char *read_str(struct _hijack *, unsigned long);
-int write_data(struct _hijack *, unsigned long, void *, size_t);
+int SetError(HIJACK *, int);
 
 unsigned long map_memory(HIJACK *, size_t, unsigned long, unsigned long);
 unsigned long map_memory_absolute(HIJACK *, unsigned long, size_t, unsigned long, unsigned long);
 unsigned long map_memory_args(HIJACK *, size_t, struct mmap_arg_struct *);
+int inject_shellcode_freebsd(HIJACK *, unsigned long, void *, size_t);
 int inject_shellcode(HIJACK *, unsigned long, void *, size_t);
 
 void *_hijack_malloc(HIJACK *, size_t);
 void _hijack_free(HIJACK *, void *, size_t);
 
 unsigned long find_rtld_linkmap(HIJACK *);
-RTLD_SYM *resolv_rtld_sym(HIJACK *, char *);
 
-int SetError(HIJACK *, int);
-void ClearError(HIJACK *);
+void *read_data(struct _hijack *, unsigned long, size_t);
+char *read_str(struct _hijack *, unsigned long);
+int write_data(struct _hijack *, unsigned long, void *, size_t);
+#endif /* HIJACK_INTERNAL */
 
 #endif

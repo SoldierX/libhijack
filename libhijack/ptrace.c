@@ -21,7 +21,8 @@
 
 #include "hijack.h"
 
-void *read_data(HIJACK *hijack, unsigned long start, size_t sz)
+void *
+read_data(HIJACK *hijack, unsigned long start, size_t sz)
 {
 	void *data, *tmpdata;
 	long ptracedata;
@@ -54,7 +55,8 @@ void *read_data(HIJACK *hijack, unsigned long start, size_t sz)
 	return data;
 }
 
-char *read_str(HIJACK *hijack, unsigned long base)
+char *
+read_str(HIJACK *hijack, unsigned long base)
 {
 	char *retval;
 	unsigned int bufsz;
@@ -76,7 +78,8 @@ char *read_str(HIJACK *hijack, unsigned long base)
 	return retval;
 }
 
-int write_data(HIJACK *hijack, unsigned long start, void *buf, size_t sz)
+int
+write_data(HIJACK *hijack, unsigned long start, void *buf, size_t sz)
 {
 	size_t i;
 	int word;

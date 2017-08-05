@@ -34,7 +34,8 @@
  *
  * XXX This function probably ought to be in elf.c, not in os_resolv.c
  */
-unsigned long find_rtld_linkmap(HIJACK *hijack)
+unsigned long
+find_rtld_linkmap(HIJACK *hijack)
 {
     struct link_map *l, *p=NULL;
     unsigned long addr=(unsigned long)NULL;
@@ -74,7 +75,8 @@ unsigned long find_rtld_linkmap(HIJACK *hijack)
  * resolved address based on the base address from the linkmap
  * added with the offset from the symbol table.
  */
-EXPORTED_SYM RTLD_SYM *resolv_rtld_sym(HIJACK *hijack, char *name)
+EXPORTED_SYM RTLD_SYM *
+resolv_rtld_sym(HIJACK *hijack, char *name)
 {
 	RTLD_SYM *sym=NULL;
 	struct link_map *l;

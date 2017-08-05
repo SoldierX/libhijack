@@ -28,7 +28,8 @@
  * @param hijack Pointer to HIJACK instance
  * \ingroup libhijack
  */
-EXPORTED_SYM int GetErrorCode(HIJACK *hijack)
+EXPORTED_SYM int
+GetErrorCode(HIJACK *hijack)
 {
 	return hijack->lastErrorCode;
 }
@@ -38,29 +39,30 @@ EXPORTED_SYM int GetErrorCode(HIJACK *hijack)
  * @param hijack Pointer to HIJACK instance
  * \ingroup libhijack
  */
-EXPORTED_SYM const char *GetErrorString(HIJACK *hijack)
+EXPORTED_SYM const char *
+GetErrorString(HIJACK *hijack)
 {
 	switch (hijack->lastErrorCode) {
-		case ERROR_NONE:
-			return "No Error";
-		case ERROR_ATTACHED:
-			return "Already Attached";
-		case ERROR_NOTATTACHED:
-			return "Not Attached";
-		case ERROR_SYSCALL:
-			return "System Call Error";
-		case ERROR_NOTIMPLEMENTED:
-			return "Not Implemented";
-		case ERROR_BADARG:
-			return "Bad Argument";
-		case ERROR_BADPID:
-			return "Bad PID";
-		case ERROR_CHILDERROR:
-			return "Error in Child Process";
-		case ERROR_NEEDED:
-			return "Needed Object Not Found";
-		default:
-			return "Unknown Error";
+	case ERROR_NONE:
+		return "No Error";
+	case ERROR_ATTACHED:
+		return "Already Attached";
+	case ERROR_NOTATTACHED:
+		return "Not Attached";
+	case ERROR_SYSCALL:
+		return "System Call Error";
+	case ERROR_NOTIMPLEMENTED:
+		return "Not Implemented";
+	case ERROR_BADARG:
+		return "Bad Argument";
+	case ERROR_BADPID:
+		return "Bad PID";
+	case ERROR_CHILDERROR:
+		return "Error in Child Process";
+	case ERROR_NEEDED:
+		return "Needed Object Not Found";
+	default:
+		return "Unknown Error";
 	}
 }
 
@@ -68,7 +70,8 @@ EXPORTED_SYM const char *GetErrorString(HIJACK *hijack)
  * Creates and initializes HIJACK instance
  * \ingroup libhijack
  */
-EXPORTED_SYM HIJACK *InitHijack(void)
+EXPORTED_SYM HIJACK *
+InitHijack(void)
 {
 	HIJACK *hijack;
 	unsigned long baseaddr = BASEADDR;
@@ -92,7 +95,8 @@ EXPORTED_SYM HIJACK *InitHijack(void)
  * @param flag Flag to check
  * \ingroup libhijack
  */
-EXPORTED_SYM bool IsFlagSet(HIJACK *hijack, unsigned int flag)
+EXPORTED_SYM bool
+IsFlagSet(HIJACK *hijack, unsigned int flag)
 {
 
 	return (hijack->flags & flag) == flag;
@@ -104,7 +108,8 @@ EXPORTED_SYM bool IsFlagSet(HIJACK *hijack, unsigned int flag)
  * @param flag Flag to toggle
  * \ingroup libhijack
  */
-EXPORTED_SYM int ToggleFlag(HIJACK *hijack, unsigned int flag)
+EXPORTED_SYM int
+ToggleFlag(HIJACK *hijack, unsigned int flag)
 {
 
 	hijack->flags ^= flag;
@@ -118,7 +123,8 @@ EXPORTED_SYM int ToggleFlag(HIJACK *hijack, unsigned int flag)
  * @param vkey Settings key to get
  * \ingroup libhijack
  */
-EXPORTED_SYM void *GetValue(HIJACK *hijack, int vkey)
+EXPORTED_SYM void *
+GetValue(HIJACK *hijack, int vkey)
 {
 
 	switch (vkey) {
@@ -136,7 +142,8 @@ EXPORTED_SYM void *GetValue(HIJACK *hijack, int vkey)
  * @param value Pointer to data containing setting
  * \ingroup libhijack
  */
-EXPORTED_SYM int SetValue(HIJACK *hijack, int vkey, void *value)
+EXPORTED_SYM int
+SetValue(HIJACK *hijack, int vkey, void *value)
 {
 
 	switch (vkey) {
@@ -153,8 +160,10 @@ EXPORTED_SYM int SetValue(HIJACK *hijack, int vkey, void *value)
  * @param hijack Pointer to HIJACK instance
  * \ingroup libhijack
  */
-EXPORTED_SYM bool IsAttached(HIJACK *hijack)
+EXPORTED_SYM bool
+IsAttached(HIJACK *hijack)
 {
+
 	return (hijack->isAttached);
 }
 
@@ -164,7 +173,8 @@ EXPORTED_SYM bool IsAttached(HIJACK *hijack)
  * @param pid PID of process
  * \ingroup libhijack
  */
-EXPORTED_SYM int AssignPid(HIJACK *hijack, pid_t pid)
+EXPORTED_SYM int
+AssignPid(HIJACK *hijack, pid_t pid)
 {
 
 	if (IsAttached(hijack))
@@ -183,7 +193,8 @@ EXPORTED_SYM int AssignPid(HIJACK *hijack, pid_t pid)
  * @param hijack Pointer to HIJACK instance
  * \ingroup libhijack
  */
-EXPORTED_SYM int Attach(HIJACK *hijack)
+EXPORTED_SYM int
+Attach(HIJACK *hijack)
 {
 	int status;
 	
@@ -219,7 +230,8 @@ EXPORTED_SYM int Attach(HIJACK *hijack)
  * @param hijack Pointer to HIJACK instance
  * \ingroup libhijack
  */
-EXPORTED_SYM int Detach(HIJACK *hijack)
+EXPORTED_SYM int
+Detach(HIJACK *hijack)
 {
 
 	if (IsAttached(hijack) == false)
@@ -238,7 +250,8 @@ EXPORTED_SYM int Detach(HIJACK *hijack)
  * @param hijack Pointer to HIJACK instance
  * \ingroup libhijack
  */
-EXPORTED_SYM int LocateSystemCall(HIJACK *hijack)
+EXPORTED_SYM int
+LocateSystemCall(HIJACK *hijack)
 {
 	Obj_Entry *soe;
 	
@@ -264,7 +277,8 @@ EXPORTED_SYM int LocateSystemCall(HIJACK *hijack)
  * @param sz How many bytes to read
  * \ingroup libhijack
  */
-EXPORTED_SYM int ReadData(HIJACK *hijack, unsigned long addr, unsigned char *buf, size_t sz)
+EXPORTED_SYM int
+ReadData(HIJACK *hijack, unsigned long addr, unsigned char *buf, size_t sz)
 {
 	void *p;
 	
@@ -294,7 +308,8 @@ EXPORTED_SYM int ReadData(HIJACK *hijack, unsigned long addr, unsigned char *buf
  * @param sz Number of bytes to write
  * \ingroup libhijack
  */
-EXPORTED_SYM int WriteData(HIJACK *hijack, unsigned long addr, unsigned char *buf, size_t sz)
+EXPORTED_SYM int
+WriteData(HIJACK *hijack, unsigned long addr, unsigned char *buf, size_t sz)
 {
 
 	if (!(buf) || !sz)
@@ -315,7 +330,8 @@ EXPORTED_SYM int WriteData(HIJACK *hijack, unsigned long addr, unsigned char *bu
  * @param flags Memory mapping flags (man mmap)
  * \ingroup libhijack InjectionPrep
  */
-EXPORTED_SYM unsigned long MapMemory(HIJACK *hijack, unsigned long addr, size_t sz, unsigned long prot, unsigned long flags)
+EXPORTED_SYM unsigned long
+MapMemory(HIJACK *hijack, unsigned long addr, size_t sz, unsigned long prot, unsigned long flags)
 {
 
 	if (!IsAttached(hijack))
@@ -332,7 +348,8 @@ EXPORTED_SYM unsigned long MapMemory(HIJACK *hijack, unsigned long addr, size_t 
  * @param sz Number of bytes to write
  * \ingroup libhijack
  */
-EXPORTED_SYM int InjectShellcode(HIJACK *hijack, unsigned long addr, void *data, size_t sz)
+EXPORTED_SYM int
+InjectShellcode(HIJACK *hijack, unsigned long addr, void *data, size_t sz)
 {
 
 	if (!IsAttached(hijack))
@@ -346,7 +363,8 @@ EXPORTED_SYM int InjectShellcode(HIJACK *hijack, unsigned long addr, void *data,
  * @param hijack Pointer to the HIJACK instance
  * \ingroup libhijack
  */
-EXPORTED_SYM REGS *GetRegs(HIJACK *hijack)
+EXPORTED_SYM REGS *
+GetRegs(HIJACK *hijack)
 {
 	REGS *ret;
 	
@@ -374,7 +392,8 @@ EXPORTED_SYM REGS *GetRegs(HIJACK *hijack)
  * @param regs Pointer to the CPU registers struct
  * \ingroup libhijack
  */
-EXPORTED_SYM int SetRegs(HIJACK *hijack, REGS *regs)
+EXPORTED_SYM int
+SetRegs(HIJACK *hijack, REGS *regs)
 {
 
 	if (!IsAttached(hijack))
@@ -393,13 +412,15 @@ EXPORTED_SYM int SetRegs(HIJACK *hijack, REGS *regs)
  * @param addr Address of the function being looked up
  * \ingroup libhijack
  */
-EXPORTED_SYM unsigned long FindFunctionInGot(HIJACK *hijack, unsigned long pltaddr, unsigned long addr)
+EXPORTED_SYM unsigned long
+FindFunctionInGot(HIJACK *hijack, unsigned long pltaddr, unsigned long addr)
 {
 
 	return (find_func_addr_in_got(hijack, pltaddr, addr));
 }
 
-EXPORTED_SYM int LoadLibrary(HIJACK *hijack, char *lib)
+EXPORTED_SYM int
+LoadLibrary(HIJACK *hijack, char *lib)
 {
 
 	return (load_library(hijack, lib));

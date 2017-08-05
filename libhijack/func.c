@@ -22,11 +22,12 @@
 
 #include "hijack.h"
 
-CBRESULT func_found(HIJACK *, void *, char *, unsigned long, size_t);
-void clean_uncached(HIJACK *);
-void free_func(FUNC *);
-CBRESULT func_found_uncached(HIJACK *, void *, char *, unsigned long, size_t);
-void print_funcs(FUNC *);
+static void clean_uncached(HIJACK *);
+static void free_func(FUNC *);
+static void print_funcs(FUNC *);
+
+static CBRESULT func_found_uncached(HIJACK *, void *, char *, unsigned long, size_t);
+static CBRESULT func_found(HIJACK *, void *, char *, unsigned long, size_t);
 
 /**
  * Find and cache all dynamically loaded functions in process
@@ -34,7 +35,8 @@ void print_funcs(FUNC *);
  * \ingroup libhijack InjectionPrep
  * \warning This function can take a long time!
  */
-EXPORTED_SYM int LocateAllFunctions(HIJACK *hijack)
+EXPORTED_SYM int
+LocateAllFunctions(HIJACK *hijack)
 {
 	Obj_Entry *soe;
 	
@@ -52,7 +54,8 @@ EXPORTED_SYM int LocateAllFunctions(HIJACK *hijack)
 	return (SetError(hijack, ERROR_NONE));
 }
 
-CBRESULT func_found(HIJACK *hijack, void *linkmap, char *name, unsigned long vaddr, size_t sz)
+static CBRESULT
+func_found(HIJACK *hijack, void *linkmap, char *name, unsigned long vaddr, size_t sz)
 {
 	FUNC *f;
 	
@@ -86,7 +89,8 @@ CBRESULT func_found(HIJACK *hijack, void *linkmap, char *name, unsigned long vad
 	return (CONTPROC);
 }
 
-PLT *get_all_PLTs_freebsd(HIJACK *hijack)
+static PLT *
+get_all_PLTs_freebsd(HIJACK *hijack)
 {
 	struct Struct_Obj_Entry *soe;
 	PLT *plt=NULL, *ret=NULL;
@@ -119,7 +123,8 @@ PLT *get_all_PLTs_freebsd(HIJACK *hijack)
  * @param hijack Pointer to the HIJACk instance
  * \ingroup libhijack InjectionPrep
  */
-EXPORTED_SYM PLT *GetAllPLTs(HIJACK *hijack)
+EXPORTED_SYM PLT *
+GetAllPLTs(HIJACK *hijack)
 {
 
 	return (get_all_PLTs_freebsd(hijack));
@@ -133,7 +138,8 @@ EXPORTED_SYM PLT *GetAllPLTs(HIJACK *hijack)
  * \ingroup libhijack InjectionPrep
  * \warning This function requires caching the functions, which can take a long time.
  */
-EXPORTED_SYM FUNC *FindAllFunctionsByName(HIJACK *hijack, char *name, bool mid)
+EXPORTED_SYM FUNC *
+FindAllFunctionsByName(HIJACK *hijack, char *name, bool mid)
 {
 	FUNC *ret=NULL, *f, *b=NULL;
 	bool found;
@@ -178,7 +184,8 @@ EXPORTED_SYM FUNC *FindAllFunctionsByName(HIJACK *hijack, char *name, bool mid)
  * \ingroup libhijack InjectionPrep
  * \warning This function requires caching the functions, which can take a long time.
  */
-EXPORTED_SYM FUNC *FindAllFunctionsByLibraryName(HIJACK *hijack, char *libname)
+EXPORTED_SYM FUNC *
+FindAllFunctionsByLibraryName(HIJACK *hijack, char *libname)
 {
 	FUNC *ret=NULL, *f, *b=NULL;
 	bool found;
@@ -213,7 +220,8 @@ EXPORTED_SYM FUNC *FindAllFunctionsByLibraryName(HIJACK *hijack, char *libname)
 	return b;
 }
 
-FUNC *FindAllFunctionsByLibraryName_uncached_freebsd(HIJACK *hijack, char *libname)
+static FUNC *
+FindAllFunctionsByLibraryName_uncached_freebsd(HIJACK *hijack, char *libname)
 {
 	char *t_libname;
 	struct Struct_Obj_Entry *soe;
@@ -244,7 +252,8 @@ FUNC *FindAllFunctionsByLibraryName_uncached_freebsd(HIJACK *hijack, char *libna
  * \ingroup libhijack InjectionPrep
  * \warning Even though this function doesn't use the cache, it can still take a long time
  */
-EXPORTED_SYM FUNC *FindAllFunctionsByLibraryName_uncached(HIJACK *hijack, char *libname)
+EXPORTED_SYM FUNC *
+FindAllFunctionsByLibraryName_uncached(HIJACK *hijack, char *libname)
 {
 	
 	if (!IsAttached(hijack))
@@ -254,7 +263,8 @@ EXPORTED_SYM FUNC *FindAllFunctionsByLibraryName_uncached(HIJACK *hijack, char *
 	    libname));
 }
 
-FUNC *FindFunctionInLibraryByName_freebsd(HIJACK *hijack, char *libname, char *funcname)
+static FUNC *
+FindFunctionInLibraryByName_freebsd(HIJACK *hijack, char *libname, char *funcname)
 {
 	FUNC *ret=NULL, *next, *prev;
 
@@ -287,7 +297,8 @@ FUNC *FindFunctionInLibraryByName_freebsd(HIJACK *hijack, char *libname, char *f
  * \ingroup libhijack InjectionPrep
  * \warning Even though this function doesn't use the cache, it can still take a long time
  */
-EXPORTED_SYM FUNC *FindFunctionInLibraryByName(HIJACK *hijack, char *libname, char *funcname)
+EXPORTED_SYM FUNC *
+FindFunctionInLibraryByName(HIJACK *hijack, char *libname, char *funcname)
 {
 	
 	if (!IsAttached(hijack))
@@ -297,7 +308,8 @@ EXPORTED_SYM FUNC *FindFunctionInLibraryByName(HIJACK *hijack, char *libname, ch
 	    funcname));
 }
 
-void clean_uncached(HIJACK *hijack)
+static void
+clean_uncached(HIJACK *hijack)
 {
 	FUNC *cur, *next;
 	
@@ -316,7 +328,8 @@ void clean_uncached(HIJACK *hijack)
 	hijack->uncached_funcs = NULL;
 }
 
-void free_func(FUNC *f)
+static void
+free_func(FUNC *f)
 {
 	if (f->libname)
 		free(f->libname);
@@ -325,7 +338,8 @@ void free_func(FUNC *f)
 	free(f);
 }
 
-CBRESULT func_found_uncached(HIJACK *hijack, void *linkmap, char *name, unsigned long vaddr, size_t sz)
+static CBRESULT
+func_found_uncached(HIJACK *hijack, void *linkmap, char *name, unsigned long vaddr, size_t sz)
 {
 	FUNC *f;
 	
@@ -358,7 +372,8 @@ CBRESULT func_found_uncached(HIJACK *hijack, void *linkmap, char *name, unsigned
 	return CONTPROC;
 }
 
-void print_funcs(FUNC *f)
+static void
+print_funcs(FUNC *f)
 {
 	while (f != NULL) {
 		fprintf(stderr, "[*] %s\n", f->libname);

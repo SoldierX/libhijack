@@ -20,11 +20,13 @@
 
 #include "hijack.h"
 
-void *_hijack_malloc(HIJACK *hijack, size_t sz)
+void *
+_hijack_malloc(HIJACK *hijack, size_t sz)
 {
 	void *p;
-	int err = ERROR_NONE;
+	int err;
 	
+	err = ERROR_NONE;
 	p = malloc(sz);
 	
 	if ((p))
@@ -37,7 +39,8 @@ void *_hijack_malloc(HIJACK *hijack, size_t sz)
 	return (p);
 }
 
-void _hijack_free(HIJACK *hijack, void *p, size_t sz)
+void
+_hijack_free(HIJACK *hijack, void *p, size_t sz)
 {
 
     if (!(p))

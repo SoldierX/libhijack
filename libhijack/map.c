@@ -25,13 +25,15 @@
 
 #include "hijack.h"
 
-unsigned long map_memory(HIJACK *hijack, size_t sz, unsigned long prot, unsigned long flags)
+unsigned long
+map_memory(HIJACK *hijack, size_t sz, unsigned long prot, unsigned long flags)
 {	
 
 	return (map_memory_absolute(hijack, (unsigned long)NULL, sz, prot, flags));
 }
 
-unsigned long map_memory_absolute(HIJACK *hijack, unsigned long addr, size_t sz, unsigned long prot, unsigned long flags)
+unsigned long
+map_memory_absolute(HIJACK *hijack, unsigned long addr, size_t sz, unsigned long prot, unsigned long flags)
 {
 	/* XXX mamp_arg_struct is only used in 32bit */
 	struct mmap_arg_struct mmap_args;
@@ -46,7 +48,8 @@ unsigned long map_memory_absolute(HIJACK *hijack, unsigned long addr, size_t sz,
 	return (map_memory_args(hijack, sz, &mmap_args));
 }
 
-unsigned long map_memory_args(HIJACK *hijack, size_t sz, struct mmap_arg_struct *mmap_args)
+unsigned long
+map_memory_args(HIJACK *hijack, size_t sz, struct mmap_arg_struct *mmap_args)
 {
 	REGS regs_backup, *regs;
 	int status;
@@ -117,7 +120,8 @@ end:
 	return (ret);
 }
 
-int inject_shellcode_freebsd(HIJACK *hijack, unsigned long addr, void *data, size_t sz)
+int
+inject_shellcode_freebsd(HIJACK *hijack, unsigned long addr, void *data, size_t sz)
 {
     REGS origregs;
 
@@ -134,7 +138,9 @@ int inject_shellcode_freebsd(HIJACK *hijack, unsigned long addr, void *data, siz
     return SetError(hijack, ERROR_NONE);
 }
 
-int inject_shellcode(HIJACK *hijack, unsigned long addr, void *data, size_t sz) {
+int
+inject_shellcode(HIJACK *hijack, unsigned long addr, void *data, size_t sz)
+{
 
     return (inject_shellcode_freebsd(hijack, addr, data, sz));
 }
