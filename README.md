@@ -6,6 +6,9 @@ during runtime. Injection is done into newly-created anonymous memory
 mappings, providing stealth. An API is provided for hooking the
 PLT/GOT, hence the "hijack" part of libhijack.
 
+*NOTE*: libhijack is undergoing a major revamp. Please do not consider
+the ABI or API as stable for the moment.
+
 Building libhijack
 ==================
 
