@@ -64,6 +64,10 @@
 #define	F_NONE			0
 #define	F_DEBUG			1
 #define	F_DEBUG_VERBOSE		2
+#define	F_DYNAMIC_BASEADDR	4
+#define	F_NO_DYNAMIC_BASEADDR	8
+#define	F_FOUND_BASEDIR		16
+#define	F_DEFAULT		(F_DYNAMIC_BASEADDR)
 
 #define	V_NONE		0
 #define	V_BASEADDR	1
@@ -156,7 +160,7 @@ typedef CBRESULT (*linkmap_callback)(struct _hijack *, void *, char *, unsigned 
 
 int GetErrorCode(HIJACK *);
 const char *GetErrorString(HIJACK *);
-HIJACK *InitHijack(void);
+HIJACK *InitHijack(unsigned int);
 bool IsFlagSet(HIJACK *, unsigned int);
 int ToggleFlag(HIJACK *, unsigned int);
 void *GetValue(HIJACK *, int);

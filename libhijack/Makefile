@@ -19,6 +19,8 @@ CFLAGS+=	-I${.CURDIR}/../include \
 		-I/usr/src/libexec/rtld-elf/${MACHINE_ARCH} \
 		-D${MACHINE_ARCH} \
 		-DHIJACK_INTERNAL
+
+LDADD=	-lprocstat
 MAN=
 
 .include <bsd.lib.mk>

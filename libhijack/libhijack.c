@@ -38,7 +38,15 @@
 #include <sys/wait.h>
 #include <sys/ptrace.h>
 
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/socket.h>
+#include <sys/sysctl.h>
+#include <libprocstat.h>
+
 #include "hijack.h"
+
+static int resolve_base_address(HIJACK *);
 
 /**
  * Returns last reported error code
@@ -88,20 +96,22 @@ GetErrorString(HIJACK *hijack)
  * \ingroup libhijack
  */
 EXPORTED_SYM HIJACK *
-InitHijack(void)
+InitHijack(unsigned int flags)
 {
 	HIJACK *hijack;
-	unsigned long baseaddr = BASEADDR;
 	
 	hijack = malloc(sizeof(HIJACK));
 	if (!(hijack))
 		return NULL;
 	
 	memset(hijack, 0x00, sizeof(HIJACK));
+
+	if (flags == F_NONE)
+		flags = F_DEFAULT;
 	
 	hijack->version = "0.7.0";
 	
-	SetValue(hijack, V_BASEADDR, &baseaddr);
+	ToggleFlag(hijack, flags);
 	
 	return (hijack);
 }
@@ -441,4 +451,86 @@ LoadLibrary(HIJACK *hijack, char *lib)
 {
 
 	return (load_library(hijack, lib));
+}
+
+static int
+resolve_base_address(HIJACK *hijack)
+{
+	struct procstat *ps;
+	struct kinfo_proc *p;
+	struct kinfo_vmentry *vm;
+	unsigned int i, cnt;
+	int err;
+
+	vm = NULL;
+	p = NULL;
+	err = ERROR_NONE;
+	cnt = 0;
+
+	ps = procstat_open_sysctl();
+	if (ps == NULL) {
+		SetError(hijack, ERROR_SYSCALL);
+		return (-1);
+	}
+
+	p = procstat_getprocs(ps, KERN_PROC_PID, hijack->pid, &cnt);
+	if (cnt == 0) {
+		err = ERROR_SYSCALL;
+		goto error;
+	}
+
+	cnt = 0;
+	vm = procstat_getvmmap(ps, p, &cnt);
+	if (cnt == 0) {
+		err = ERROR_SYSCALL;
+		goto error;
+	}
+
+	for (i = 0; i < cnt; i++) {
+		if ((vm[i].kve_protection & KVME_PROT_EXEC) == KVME_PROT_EXEC
+		    && vm[i].kve_type == KVME_TYPE_VNODE) {
+			hijack->baseaddr = (unsigned long)vm[i].kve_start;
+			break;
+		}
+	}
+
+	if (hijack->baseaddr == (unsigned long)NULL)
+		err = ERROR_NEEDED;
+
+error:
+	if (vm != NULL)
+		procstat_freevmmap(ps, vm);
+	if (p != NULL)
+		procstat_freeprocs(ps, p);
+	procstat_close(ps);
+	return (err);
+}
+
+int
+init_hijack_system(HIJACK *hijack)
+{
+	int err;
+
+	if (!IsAttached(hijack))
+		return (SetError(hijack, ERROR_NOTATTACHED));
+
+	if ((hijack->flags & F_DYNAMIC_BASEADDR) == F_DYNAMIC_BASEADDR) {
+		err = SetError(hijack, resolve_base_address(hijack));
+		if (err)
+			return (err);
+	} else {
+		if (hijack->baseaddr == (unsigned long)NULL)
+			hijack->baseaddr = BASEADDR;
+	}
+
+	if (init_elf_headers(hijack) != 0)
+		return (SetError(hijack, ERROR_SYSCALL));
+
+	if ((hijack->pltgot = find_pltgot(hijack)) == (unsigned long)NULL)
+		return (GetErrorCode(hijack));
+    
+	find_link_map_addr(hijack);
+	hijack->linkhead = &(hijack->soe->linkmap);
+
+	return (SetError(hijack, ERROR_NONE));
 }

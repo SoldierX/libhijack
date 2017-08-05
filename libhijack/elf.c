@@ -214,25 +214,6 @@ search_mem(HIJACK *hijack, unsigned long funcaddr, size_t funcsz, void *data, si
 	return ((unsigned long)NULL);
 }
 
-int
-init_hijack_system(HIJACK *hijack)
-{
-	/* This probably ought to be in libhijack.c */
-	if (!IsAttached(hijack))
-		return (SetError(hijack, ERROR_NOTATTACHED));
-
-	if (init_elf_headers(hijack) != 0)
-		return (SetError(hijack, ERROR_SYSCALL));
-
-	if ((hijack->pltgot = find_pltgot(hijack)) == (unsigned long)NULL)
-		return (GetErrorCode(hijack));
-    
-	find_link_map_addr(hijack);
-	hijack->linkhead = &(hijack->soe->linkmap);
-
-	return (SetError(hijack, ERROR_NONE));
-}
-
 unsigned long
 find_func_addr_in_got(HIJACK *hijack, unsigned long pltaddr, unsigned long addr)
 {
