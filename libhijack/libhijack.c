@@ -84,11 +84,11 @@ EXPORTED_SYM HIJACK *InitHijack(void)
 	
 	memset(hijack, 0x00, sizeof(HIJACK));
 	
-	hijack->version = "0.6.1";
+	hijack->version = "0.7.0";
 	
 	SetValue(hijack, V_BASEADDR, &baseaddr);
 	
-	return hijack;
+	return (hijack);
 }
 
 /**
@@ -99,6 +99,7 @@ EXPORTED_SYM HIJACK *InitHijack(void)
  */
 EXPORTED_SYM bool IsFlagSet(HIJACK *hijack, unsigned int flag)
 {
+
 	return (hijack->flags & flag) == flag;
 }
 
@@ -110,9 +111,10 @@ EXPORTED_SYM bool IsFlagSet(HIJACK *hijack, unsigned int flag)
  */
 EXPORTED_SYM int ToggleFlag(HIJACK *hijack, unsigned int flag)
 {
+
 	hijack->flags ^= flag;
 	
-	return SetError(hijack, ERROR_NONE);
+	return (SetError(hijack, ERROR_NONE));
 }
 
 /**
@@ -123,11 +125,12 @@ EXPORTED_SYM int ToggleFlag(HIJACK *hijack, unsigned int flag)
  */
 EXPORTED_SYM void *GetValue(HIJACK *hijack, int vkey)
 {
+
 	switch (vkey) {
-		case V_BASEADDR:
-			return &(hijack->baseaddr);
-		default:
-			return NULL;
+	case V_BASEADDR:
+		return (&(hijack->baseaddr));
+	default:
+		return (NULL);
 	}
 }
 
@@ -140,12 +143,13 @@ EXPORTED_SYM void *GetValue(HIJACK *hijack, int vkey)
  */
 EXPORTED_SYM int SetValue(HIJACK *hijack, int vkey, void *value)
 {
+
 	switch (vkey) {
-		case V_BASEADDR:
-			memcpy(&(hijack->baseaddr), value, sizeof(unsigned long));
-			return SetError(hijack, ERROR_NONE);
-		default:
-			return SetError(hijack, ERROR_BADARG);
+	case V_BASEADDR:
+		memcpy(&(hijack->baseaddr), value, sizeof(unsigned long));
+		return (SetError(hijack, ERROR_NONE));
+	default:
+		return (SetError(hijack, ERROR_BADARG));
 	}
 }
 
@@ -156,7 +160,7 @@ EXPORTED_SYM int SetValue(HIJACK *hijack, int vkey, void *value)
  */
 EXPORTED_SYM bool IsAttached(HIJACK *hijack)
 {
-	return hijack->isAttached;
+	return (hijack->isAttached);
 }
 
 /**
@@ -167,15 +171,16 @@ EXPORTED_SYM bool IsAttached(HIJACK *hijack)
  */
 EXPORTED_SYM int AssignPid(HIJACK *hijack, pid_t pid)
 {
+
 	if (IsAttached(hijack))
-		return SetError(hijack, ERROR_ATTACHED);
+		return (SetError(hijack, ERROR_ATTACHED));
 	
 	if (pid <= 1)
-		return SetError(hijack, ERROR_BADPID);
+		return (SetError(hijack, ERROR_BADPID));
 	
 	hijack->pid = pid;
 	
-	return SetError(hijack, ERROR_NONE);
+	return (SetError(hijack, ERROR_NONE));
 }
 
 /**
@@ -188,16 +193,16 @@ EXPORTED_SYM int Attach(HIJACK *hijack)
 	int status;
 	
 	if (IsAttached(hijack))
-		return SetError(hijack, ERROR_ATTACHED);
+		return (SetError(hijack, ERROR_ATTACHED));
 	
 	if (hijack->pid <= 1)
-		return SetError(hijack, ERROR_BADPID);
+		return (SetError(hijack, ERROR_BADPID));
 	
 	if (IsFlagSet(hijack, F_DEBUG))
 		fprintf(stderr, "[*] Attaching...\n");
 	
 	if (ptrace(PTRACE_ATTACH, hijack->pid, NULL, 0) < 0)
-		return SetError(hijack, ERROR_SYSCALL);
+		return (SetError(hijack, ERROR_SYSCALL));
 	
 	do {
 		waitpid(hijack->pid, &status, 0);
@@ -248,7 +253,10 @@ EXPORTED_SYM int LocateSystemCall(HIJACK *hijack)
 	soe = hijack->soe;
 	do {
 		freebsd_parse_soe(hijack, soe, syscall_callback);
-	} while ((soe = read_data(hijack, (unsigned long)(TAILQ_NEXT(soe, next)), sizeof(*soe))) != NULL);
+		soe = read_data(hijack,
+		    (unsigned long)TAILQ_NEXT(soe, next),
+		    sizeof(*soe));
+	} while (soe != NULL);
 	
 	return (SetError(hijack, ERROR_NONE));
 }
