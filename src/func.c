@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2012, Shawn Webb
+ * Copyright (c) 2011-2017, Shawn Webb
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -41,34 +41,20 @@ void print_funcs(FUNC *);
  */
 EXPORTED_SYM int LocateAllFunctions(HIJACK *hijack)
 {
-#if defined(FreeBSD)
-    Obj_Entry *soe, *ptr;
-#elif defined(Linux)
-	struct link_map *linkmap;
-#endif
+	Obj_Entry *soe;
 	
 	if (!IsAttached(hijack))
 		return SetError(hijack, ERROR_NOTATTACHED);
 
-#if defined(FreeBSD)
-    soe = hijack->soe;
-    do {
-        freebsd_parse_soe(hijack, soe, func_found);
-	ptr = TAILQ_NEXT(soe, next);
-    } while ((soe = read_data(hijack, (unsigned long)(ptr), sizeof(struct Struct_Obj_Entry))) != NULL);
-#elif defined(Linux)
-	linkmap = hijack->linkhead;
-	do
-	{
-		if (!(linkmap))
-			break;
-		if (IsFlagSet(hijack, F_DEBUG_VERBOSE))
-			fprintf(stderr, "[*] Loading from %s\n", read_str(hijack, (unsigned long)linkmap->l_name));
-		parse_linkmap(hijack, linkmap, func_found);
-	} while ((linkmap = get_next_linkmap(hijack, (unsigned long)(linkmap->l_next))) != NULL);
-#endif
+	soe = hijack->soe;
+	do {
+		freebsd_parse_soe(hijack, soe, func_found);
+		soe = read_data(hijack,
+		    (unsigned long)TAILQ_NEXT(soe, next),
+		    sizeof(Obj_Entry));
+	} while (soe != NULL);
 	
-	return SetError(hijack, ERROR_NONE);
+	return (SetError(hijack, ERROR_NONE));
 }
 
 CBRESULT func_found(HIJACK *hijack, void *linkmap, char *name, unsigned long vaddr, size_t sz)
@@ -76,7 +62,7 @@ CBRESULT func_found(HIJACK *hijack, void *linkmap, char *name, unsigned long vad
 	FUNC *f;
 	
 	if (!(linkmap))
-		return CONTPROC;
+		return (CONTPROC);
 	
 	if (hijack->funcs) {
 		f = hijack->funcs;
@@ -85,56 +71,53 @@ CBRESULT func_found(HIJACK *hijack, void *linkmap, char *name, unsigned long vad
 		
 		f->next = _hijack_malloc(hijack, sizeof(FUNC));
 		if (!(f->next))
-			return TERMPROC;
+			return (TERMPROC);
 
 		f = f->next;
 	} else {
 		hijack->funcs = _hijack_malloc(hijack, sizeof(FUNC));
 		if (!(hijack->funcs))
-			return TERMPROC;
+			return (TERMPROC);
 		
 		f = hijack->funcs;
 	}
 
-#if defined(FreeBSD)
-    /* linkmap actually points to an Struct_Obj_Entry struct */
-    f->libname = read_str(hijack, (unsigned long)(((struct Struct_Obj_Entry *)linkmap)->path));
-#elif defined(Linux)    
-	f->libname = read_str(hijack, (unsigned long)(((struct link_map *)linkmap)->l_name));
-#endif
+	/* linkmap actually points to an Struct_Obj_Entry struct */
+	f->libname = read_str(hijack, (unsigned long)(((Obj_Entry *)linkmap)->path));
 	f->name = strdup(name);
 	f->sz = sz;
 	f->vaddr = vaddr;
 	
-	return CONTPROC;
+	return (CONTPROC);
 }
 
-#if defined(FreeBSD)
 PLT *get_all_PLTs_freebsd(HIJACK *hijack)
 {
-    struct Struct_Obj_Entry *soe;
-    PLT *plt=NULL, *ret=NULL;
+	struct Struct_Obj_Entry *soe;
+	PLT *plt=NULL, *ret=NULL;
 
-    soe = hijack->soe;
-    do {
-        if (!(plt)) {
-            plt = ret = _hijack_malloc(hijack, sizeof(PLT));
-            if (!(plt))
-                return NULL;
-        } else {
-            plt->next = _hijack_malloc(hijack, sizeof(PLT));
-            if (!(plt->next))
-                return ret;
-            plt = plt->next;
-        }
+	soe = hijack->soe;
+	do {
+		if (!(plt)) {
+			plt = ret = _hijack_malloc(hijack, sizeof(PLT));
+			if (!(plt))
+				return (NULL);
+		} else {
+			plt->next = _hijack_malloc(hijack, sizeof(PLT));
+			if (!(plt->next))
+				return (ret);
+			plt = plt->next;
+		}
 
-        plt->libname = read_str(hijack, (unsigned long)(soe->path));
-        plt->p.raw = soe->pltgot;
-    } while ((soe = read_data(hijack, (unsigned long)(TAILQ_NEXT(soe, next)), sizeof(struct Struct_Obj_Entry))));
+		plt->libname = read_str(hijack, (unsigned long)(soe->path));
+		plt->p.raw = soe->pltgot;
+		soe = read_data(hijack,
+		    (unsigned long)TAILQ_NEXT(soe, next),
+		    sizeof(Obj_Entry));
+	} while (soe != NULL);
 
-    return ret;
+	return (ret);
 }
-#endif
 
 /**
  * Get location of the PLT in each dynamically-loaded shared object.
@@ -143,60 +126,8 @@ PLT *get_all_PLTs_freebsd(HIJACK *hijack)
  */
 EXPORTED_SYM PLT *GetAllPLTs(HIJACK *hijack)
 {
-	struct link_map *linkmap;
-	char *libname;
-	PLT *plt=NULL, *ret=NULL;
-	ElfW(Dyn) *dyn=NULL;
-	unsigned long addr;
 
-#if defined(FreeBSD)
-    return get_all_PLTs_freebsd(hijack);
-#endif
-
-	if (!(IsAttached(hijack))) {
-		SetError(hijack, ERROR_NOTATTACHED);
-		return NULL;
-	}
-
-	linkmap = hijack->linkhead;
-	do {
-		if (!(linkmap))
-			break;
-
-		libname = read_str(hijack, (unsigned long)linkmap->l_name);
-
-		if (IsFlagSet(hijack, F_DEBUG_VERBOSE))
-			fprintf(stderr, "[*] Loading from %s\n", libname);
-
-		addr = (unsigned long)linkmap->l_ld;
-		do {
-			dyn = read_data(hijack, addr, sizeof(ElfW(Dyn)));
-			if (!(dyn))
-				break;
-
-			if (dyn->d_tag == DT_PLTGOT)
-				break;
-
-			addr += sizeof(ElfW(Dyn));
-		} while (dyn->d_tag != DT_NULL);
-
-		if (!(dyn) || dyn->d_tag == DT_NULL)
-			continue;
-
-		if (!(plt)) {
-			plt = ret = malloc(sizeof(PLT));
-		} else {
-			plt->next = malloc(sizeof(PLT));
-			plt = plt->next;
-		}
-
-		memset(plt, 0x00, sizeof(PLT));
-
-		plt->libname = libname;
-		plt->p.ptr = (unsigned long)dyn->d_un.d_ptr + sizeof(unsigned long)*3;
-	} while ((linkmap = get_next_linkmap(hijack, (unsigned long)(linkmap->l_next))) != NULL);
-
-	return ret;
+	return (get_all_PLTs_freebsd(hijack));
 }
 
 /**
@@ -213,7 +144,7 @@ EXPORTED_SYM FUNC *FindAllFunctionsByName(HIJACK *hijack, char *name, bool mid)
 	bool found;
 	
 	if (!IsAttached(hijack))
-		return NULL;
+		return (NULL);
 	
 	f = hijack->funcs;
 	while (f != NULL) {
@@ -226,12 +157,12 @@ EXPORTED_SYM FUNC *FindAllFunctionsByName(HIJACK *hijack, char *name, bool mid)
 			if (!(ret)) {
 				ret = _hijack_malloc(hijack, sizeof(FUNC));
 				if (!(ret))
-					return NULL;
+					return (NULL);
 				b = ret;
 			} else {
 				ret->next = _hijack_malloc(hijack, sizeof(FUNC));
 				if (!(ret->next))
-					return b; /* Return what we got */
+					return (b); /* Return what we got */
 				ret = ret->next;
 			}
 			
@@ -242,7 +173,7 @@ EXPORTED_SYM FUNC *FindAllFunctionsByName(HIJACK *hijack, char *name, bool mid)
 		f = f->next;
 	}
 	
-	return b;
+	return (b);
 }
 
 /**
@@ -258,7 +189,7 @@ EXPORTED_SYM FUNC *FindAllFunctionsByLibraryName(HIJACK *hijack, char *libname)
 	bool found;
 	
 	if (!IsAttached(hijack))
-		return NULL;
+		return (NULL);
 	
 	f = hijack->funcs;
 	while (f != NULL) {
@@ -268,12 +199,12 @@ EXPORTED_SYM FUNC *FindAllFunctionsByLibraryName(HIJACK *hijack, char *libname)
 			if (!(ret)) {
 				ret = _hijack_malloc(hijack, sizeof(FUNC));
 				if (!(ret))
-					return NULL;
+					return (NULL);
 				b = ret;
 			} else {
 				ret->next = _hijack_malloc(hijack, sizeof(FUNC));
 				if (!(ret->next))
-					return b; /* Return what we got */
+					return (b); /* Return what we got */
 				ret = ret->next;
 			}
 			
@@ -287,28 +218,29 @@ EXPORTED_SYM FUNC *FindAllFunctionsByLibraryName(HIJACK *hijack, char *libname)
 	return b;
 }
 
-#if defined(FreeBSD)
 FUNC *FindAllFunctionsByLibraryName_uncached_freebsd(HIJACK *hijack, char *libname)
 {
-    char *t_libname;
-    struct Struct_Obj_Entry *soe;
+	char *t_libname;
+	struct Struct_Obj_Entry *soe;
 
-    clean_uncached(hijack);
+	clean_uncached(hijack);
 
-    soe = hijack->soe;
-    do {
-        t_libname = read_str(hijack, (unsigned long)(soe->path));
-        if (!(t_libname) || strstr(t_libname, libname) == NULL)
-            continue;
+	soe = hijack->soe;
+	do {
+		t_libname = read_str(hijack, (unsigned long)(soe->path));
+		if (!(t_libname) || strstr(t_libname, libname) == NULL)
+			continue;
 
-        freebsd_parse_soe(hijack, soe, func_found_uncached);
+		freebsd_parse_soe(hijack, soe, func_found_uncached);
 
-        return hijack->uncached_funcs;
-    } while ((soe = read_data(hijack, (unsigned long)(TAILQ_NEXT(soe, next)), sizeof(struct Struct_Obj_Entry))));
+		return (hijack->uncached_funcs);
+		soe = read_data(hijack,
+		    (unsigned long)TAILQ_NEXT(soe, next),
+		    sizeof(Obj_Entry));
+	} while (soe != NULL);
 
-    return NULL;
+	return (NULL);
 }
-#endif
 
 /**
  * Find all dynamically loaded functions in a loaded library
@@ -319,51 +251,19 @@ FUNC *FindAllFunctionsByLibraryName_uncached_freebsd(HIJACK *hijack, char *libna
  */
 EXPORTED_SYM FUNC *FindAllFunctionsByLibraryName_uncached(HIJACK *hijack, char *libname)
 {
-	struct link_map *linkmap;
-	char *t_libname;
 	
 	if (!IsAttached(hijack))
 		return NULL;
 	
-#if defined(FreeBSD)
-    return FindAllFunctionsByLibraryName_uncached_freebsd(hijack, libname);
-#endif
-
-	/*
-	 * Do this in two steps:
-	 * 1) Cache all functions in libraries that have libname in its name
-	 * 2) Remove all functions which are not named funcname
-	 * This is really more like partially-caching. However, because of existing APIs, it has to be done this way
-	 */
-	clean_uncached(hijack);
-	linkmap = hijack->linkhead;
-	for (linkmap = hijack->linkhead; linkmap != NULL; linkmap = get_next_linkmap(hijack, (unsigned long)(linkmap->l_next))) {
-		t_libname = read_str(hijack, (unsigned long)(linkmap->l_name));
-		if (!(t_libname) || !strlen(t_libname))
-			continue;
-		
-		if (IsFlagSet(hijack, F_DEBUG_VERBOSE))
-				fprintf(stderr, "[*] Looking at %s\n", t_libname);
-		
-		if (strstr(t_libname, libname)) {
-			if (IsFlagSet(hijack, F_DEBUG_VERBOSE))
-				fprintf(stderr, "[*] Loading from %s\n", t_libname);
-		
-			parse_linkmap(hijack, linkmap, func_found_uncached);
-			
-			return hijack->uncached_funcs;
-		}
-	}
-	
-	return NULL;
+	return (FindAllFunctionsByLibraryName_uncached_freebsd(hijack,
+	    libname));
 }
 
-#if defined(FreeBSD)
 FUNC *FindFunctionInLibraryByName_freebsd(HIJACK *hijack, char *libname, char *funcname)
 {
-    FUNC *ret=NULL, *next, *prev;
+	FUNC *ret=NULL, *next, *prev;
 
-    FindAllFunctionsByLibraryName_uncached(hijack, libname);
+	FindAllFunctionsByLibraryName_uncached(hijack, libname);
 
 	ret = prev = hijack->uncached_funcs;
 	while (ret != NULL) {
@@ -381,9 +281,8 @@ FUNC *FindFunctionInLibraryByName_freebsd(HIJACK *hijack, char *libname, char *f
 		ret = next;
 	}
 
-    return hijack->uncached_funcs;
+	return (hijack->uncached_funcs);
 }
-#endif
 
 /**
  * Find a function in a dynamically loaded library
@@ -395,54 +294,12 @@ FUNC *FindFunctionInLibraryByName_freebsd(HIJACK *hijack, char *libname, char *f
  */
 EXPORTED_SYM FUNC *FindFunctionInLibraryByName(HIJACK *hijack, char *libname, char *funcname)
 {
-	FUNC *ret=NULL, *next, *prev;
-	struct link_map *linkmap;
-	char *t_libname;
 	
 	if (!IsAttached(hijack))
 		return NULL;
 	
-#if defined(FreeBSD)
-    return FindFunctionInLibraryByName_freebsd(hijack, libname, funcname);
-#endif
-
-	/*
-	 * Do this in two steps:
-	 * 1) Cache all functions in libraries that have libname in its name
-	 * 2) Remove all functions which are not named funcname
-	 * This is really more like partially-caching. However, because of existing APIs, it has to be done this way
-	 */
-	clean_uncached(hijack);
-	linkmap = hijack->linkhead;
-	for (linkmap = hijack->linkhead; linkmap != NULL; linkmap = get_next_linkmap(hijack, (unsigned long)(linkmap->l_next))) {
-		t_libname = read_str(hijack, (unsigned long)(linkmap->l_name));
-		
-		if (!(t_libname) || !strlen(t_libname) || strstr(t_libname, libname) == NULL)
-			continue;
-			
-		if (IsFlagSet(hijack, F_DEBUG_VERBOSE))
-			fprintf(stderr, "[*] Loading from %s\n", t_libname);
-		
-		parse_linkmap(hijack, linkmap, func_found_uncached);
-	}
-	
-	ret = prev = hijack->uncached_funcs;
-	while (ret != NULL) {
-		next = ret->next;
-		if (!(ret->name) || strcmp(ret->name, funcname)) {
-			if (ret == hijack->uncached_funcs)
-				hijack->uncached_funcs = prev = next;
-			else
-				prev->next = next;
-			
-			free_func(ret);
-		} else
-			prev = ret;
-		
-		ret = next;
-	}
-	
-	return hijack->uncached_funcs;
+	return (FindFunctionInLibraryByName_freebsd(hijack, libname,
+	    funcname));
 }
 
 void clean_uncached(HIJACK *hijack)
@@ -478,7 +335,7 @@ CBRESULT func_found_uncached(HIJACK *hijack, void *linkmap, char *name, unsigned
 	FUNC *f;
 	
 	if (!(linkmap))
-		return CONTPROC;
+		return (CONTPROC);
 	
 	if (hijack->uncached_funcs) {
 		f = hijack->uncached_funcs;
@@ -487,21 +344,18 @@ CBRESULT func_found_uncached(HIJACK *hijack, void *linkmap, char *name, unsigned
 		
 		f->next = _hijack_malloc(hijack, sizeof(FUNC));
 		if (!(f->next))
-			return TERMPROC;
+			return (TERMPROC);
 		f = f->next;
 	} else {
 		hijack->uncached_funcs = _hijack_malloc(hijack, sizeof(FUNC));
 		if (!(hijack->uncached_funcs))
-			return TERMPROC;
+			return (TERMPROC);
 		
 		f = hijack->uncached_funcs;
 	}
 	
-#if defined(FreeBSD)
-    f->libname = read_str(hijack, (unsigned long)(((struct Struct_Obj_Entry *)linkmap)->path));
-#else
-	f->libname = read_str(hijack, (unsigned long)(((struct link_map *)linkmap)->l_name));
-#endif
+	f->libname = read_str(hijack,
+	    (unsigned long)(((Obj_Entry *)linkmap)->path));
 	f->name = strdup(name);
 	f->sz = sz;
 	f->vaddr = vaddr;

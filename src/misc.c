@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2013, Shawn Webb
+ * Copyright (c) 2011-2017, Shawn Webb
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -36,11 +36,12 @@ void *_hijack_malloc(HIJACK *hijack, size_t sz)
 	
 	SetError(hijack, err);
 	
-	return p;
+	return (p);
 }
 
 void _hijack_free(HIJACK *hijack, void *p, size_t sz)
 {
+
     if (!(p))
         return;
 

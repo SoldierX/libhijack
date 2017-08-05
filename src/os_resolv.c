@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2013, Shawn Webb
+ * Copyright (c) 2011-2017, Shawn Webb
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -32,7 +32,6 @@
 #include "hijack_elf.h"
 #include "os_resolv.h"
 
-#if defined(FreeBSD)
 /*
  * Find the RTLD's linkmap. On FreeBSD, the RTLD's linkmap is the last entry.
  *
@@ -83,100 +82,99 @@ unsigned long find_rtld_linkmap(HIJACK *hijack)
  */
 EXPORTED_SYM RTLD_SYM *resolv_rtld_sym(HIJACK *hijack, char *name)
 {
-    RTLD_SYM *sym=NULL;
-    struct link_map *l;
-    char *path;
-    void *buf;
-    int fd;
-    struct stat sb;
-    char *strtab;
-    ElfW(Sym) *symtab=NULL;
-    ElfW(Ehdr) *ehdr=NULL;
-    ElfW(Shdr) *shdr=NULL;
-    ElfW(Phdr) *phdr=NULL;
-    ElfW(Dyn) *dyn=NULL;
-    unsigned long i;
-    unsigned long symsz;
+	RTLD_SYM *sym=NULL;
+	struct link_map *l;
+	char *path;
+	void *buf;
+	int fd;
+	struct stat sb;
+	char *strtab;
+	ElfW(Sym) *symtab=NULL;
+	ElfW(Ehdr) *ehdr=NULL;
+	ElfW(Shdr) *shdr=NULL;
+	ElfW(Phdr) *phdr=NULL;
+	ElfW(Dyn) *dyn=NULL;
+	unsigned long i;
+	unsigned long symsz;
 
-    if (!(hijack))
-        return NULL;
+	if (!(hijack))
+		return (NULL);
 
-    l = read_data(hijack, find_rtld_linkmap(hijack), sizeof(struct link_map));
-    if (!(l))
-        return NULL;
+	l = read_data(hijack, find_rtld_linkmap(hijack), sizeof(struct link_map));
+	if (!(l))
+		return (NULL);
 
-    path = read_str(hijack, (unsigned long)(l->l_name));
-    if (!(path))
-        return NULL;
+	path = read_str(hijack, (unsigned long)(l->l_name));
+	if (!(path))
+		return (NULL);
 
-    stat(path, &sb);
-    fd = open(path, O_RDONLY);
-    if (fd < 0)
-        return NULL;
+	stat(path, &sb);
+	fd = open(path, O_RDONLY);
+	if (fd < 0)
+		return (NULL);
 
-    buf = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
-    if (buf == MAP_FAILED) {
-        close(fd);
-        return NULL;
-    }
+	buf = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+	if (buf == MAP_FAILED) {
+		close(fd);
+		return (NULL);
+	}
 
-    ehdr = buf;
-    shdr = buf + ehdr->e_shoff;
-    for (i=0; i < ehdr->e_shnum; i++) {
-        switch (shdr[i].sh_type) {
-            case SHT_DYNSYM:
-                symtab = buf+shdr[i].sh_offset;
-                symsz = shdr[i].sh_size/sizeof(ElfW(Sym));
-                break;
-        }
-    }
+	ehdr = buf;
+	shdr = buf + ehdr->e_shoff;
+	for (i=0; i < ehdr->e_shnum; i++) {
+		switch (shdr[i].sh_type) {
+		case SHT_DYNSYM:
+			symtab = buf+shdr[i].sh_offset;
+			symsz = shdr[i].sh_size/sizeof(ElfW(Sym));
+			break;
+		}
+	}
 
-    phdr = buf+ehdr->e_phoff;
-    for (i=0; i < ehdr->e_phnum; i++) {
-        switch (phdr[i].p_type) {
-            case PT_DYNAMIC:
-                dyn = buf+phdr[i].p_offset;
-                break;
-        }
-    }
+	phdr = buf+ehdr->e_phoff;
+	for (i=0; i < ehdr->e_phnum; i++) {
+		switch (phdr[i].p_type) {
+		case PT_DYNAMIC:
+			dyn = buf+phdr[i].p_offset;
+			break;
+		}
+	}
 
-    for (i=0; dyn[i].d_tag != DT_NULL; i++) {
-        switch (dyn[i].d_tag) {
-            case DT_STRTAB:
-                strtab = buf+dyn[i].d_un.d_val;
-                break;
-        }
-    }
+	for (i=0; dyn[i].d_tag != DT_NULL; i++) {
+		switch (dyn[i].d_tag) {
+		case DT_STRTAB:
+			strtab = buf+dyn[i].d_un.d_val;
+			break;
+		}
+	}
 
-    /* XXX This should _never_ happen with the RTLD */
-    if (!(dyn) || !(strtab))
-        return NULL;
+	/* XXX This should _never_ happen with the RTLD */
+	if (!(dyn) || !(strtab))
+		return (NULL);
 
-    for (i=0; i < symsz; i++) {
-        if (!strcmp(name, strtab+symtab[i].st_name)) {
-            sym = _hijack_malloc(hijack, sizeof(RTLD_SYM));
+	for (i=0; i < symsz; i++) {
+		if (!strcmp(name, strtab+symtab[i].st_name)) {
+			sym = _hijack_malloc(hijack, sizeof(RTLD_SYM));
 
-            sym->name = strdup(strtab+symtab[i].st_name);
-            sym->p.ulp = (unsigned long)(l->l_addr + symtab[i].st_value);
-            sym->sz = symtab[i].st_size;
+			sym->name = strdup(strtab+symtab[i].st_name);
+			sym->p.ulp = (unsigned long)(l->l_addr + symtab[i].st_value);
+			sym->sz = symtab[i].st_size;
 
-            switch (ELF_ST_TYPE(symtab[i].st_info)) {
-                case STT_FUNC:
-                    sym->type = RTLD_SYM_FUNC;
-                    break;
-                case STT_OBJECT:
-                    sym->type = RTLD_SYM_VAR;
-                    break;
-            }
+			switch (ELF_ST_TYPE(symtab[i].st_info)) {
+			case STT_FUNC:
+				sym->type = RTLD_SYM_FUNC;
+				break;
+			case STT_OBJECT:
+				sym->type = RTLD_SYM_VAR;
+				break;
+			}
 
-            /* We shouldn't see multiple symbols that share the same name */
-            break;
-        }
-    }
+			/* We shouldn't see multiple symbols that share the same name */
+			break;
+		}
+	}
 
-    /* If no match, sym will be NULL  */
-    munmap(buf, sb.st_size);
-    close(fd);
-    return sym;
+	/* If no match, sym will be NULL  */
+	munmap(buf, sb.st_size);
+	close(fd);
+	return (sym);
 }
-#endif

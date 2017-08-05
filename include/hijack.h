@@ -17,45 +17,37 @@
 #include <elf.h>
 #include <link.h>
 
-/* PTrace abstraction */
-#if defined(FreeBSD)
-    #include <machine/reg.h>
-    #include "rtld.h"
+#include <machine/reg.h>
+#include "rtld.h"
 
-    #define ElfW(type) __ElfN(type)
+#define ElfW(type) __ElfN(type)
 
-    #define PTRACE_ATTACH   PT_ATTACH
-    #define PTRACE_DETACH   PT_DETACH
-    #define PTRACE_GETREGS  PT_GETREGS
-    #define PTRACE_SETREGS  PT_SETREGS
-    #define PTRACE_CONTINUE PT_CONTINUE
-    #define PTRACE_PEEKTEXT PT_READ_D
-    #define PTRACE_POKETEXT PT_WRITE_D
-    #define PTRACE_SINGLESTEP   PT_STEP
+#define PTRACE_ATTACH   PT_ATTACH
+#define PTRACE_DETACH   PT_DETACH
+#define PTRACE_GETREGS  PT_GETREGS
+#define PTRACE_SETREGS  PT_SETREGS
+#define PTRACE_CONTINUE PT_CONTINUE
+#define PTRACE_PEEKTEXT PT_READ_D
+#define PTRACE_POKETEXT PT_WRITE_D
+#define PTRACE_SINGLESTEP   PT_STEP
 
-    #define REGS    struct reg
-#elif defined(Linux)
-    #define REGS    struct user_regs_struct
-    typedef enum _bool {false=0, true=1} bool;
-#else
-    #error "Unsupported OS"
-#endif
+#define REGS    struct reg
 
 #define EXPORTED_SYM __attribute__((visibility("default")))
 
-#define ERROR_NONE				0
+#define ERROR_NONE			0
 #define ERROR_ATTACHED			1
 #define ERROR_NOTATTACHED		2
 #define ERROR_BADPID			3
 #define ERROR_SYSCALL			4
-#define ERROR_NOTIMPLEMENTED	5
+#define ERROR_NOTIMPLEMENTED		5
 #define ERROR_BADARG			6
 #define ERROR_CHILDERROR		7
 #define ERROR_NEEDED			8
 
 #define F_NONE			0
 #define F_DEBUG			1
-#define F_DEBUG_VERBOSE	2
+#define F_DEBUG_VERBOSE		2
 
 #define V_NONE		0
 #define V_BASEADDR	1
@@ -107,9 +99,7 @@ typedef struct _hijack {
 	struct _func *uncached_funcs;
 
     /* FreeBSD uses struct Struct_Obj_Entry along with struct link_map */
-#if defined(FreeBSD)
-    struct Struct_Obj_Entry *soe;
-#endif
+    Obj_Entry *soe;
 } HIJACK;
 
 int GetErrorCode(HIJACK *);

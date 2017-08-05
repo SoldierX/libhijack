@@ -13,27 +13,12 @@
 #if !defined(_HIJACK_ELF_H)
 #define _HIJACK_ELF_H
 
-#if defined(FreeBSD)
-    #if defined(amd64)
-        #define BASEADDR 0x00400000
-        #define SYSCALLSEARCH "\x0f\x05"
-        #define MMAPSYSCALL 477
-    #endif
-#elif defined(Linux)
-    #if defined(i686)
-    #define ELF_ST_TYPE ELF32_ST_TYPE
-    	#define BASEADDR 0x08048000
-    	#define SYSCALLSEARCH "\xcd\x80"
-    	#define MMAPSYSCALL 90
-    #elif defined(x86_64)
-        #define ELF_ST_TYPE ELF64_ST_TYPE
-    	#define BASEADDR 0x00400000
-    	#define SYSCALLSEARCH "\x0f\x05"
-    	/* #define SYSCALLSEARCH "\xcd\x80" */
-    	#define MMAPSYSCALL 9
-    #else
-    	#error "Architecture not supported!"
-    #endif
+#if defined(amd64)
+#define	BASEADDR	0x00400000
+#define	SYSCALLSEARCH	"\x0f\x05"
+#define	MMAPSYSCALL	477
+#else
+#error Unsupported architecture
 #endif
 
 struct _hijack;
@@ -47,9 +32,7 @@ int init_elf_headers(HIJACK *);
 unsigned long find_pltgot(struct _hijack *);
 unsigned long find_link_map_addr(HIJACK *);
 struct link_map *get_next_linkmap(HIJACK *, unsigned long);
-#if defined(FreeBSD)
 void freebsd_parse_soe(HIJACK *, struct Struct_Obj_Entry *, linkmap_callback);
-#endif
 void parse_linkmap(HIJACK *, struct link_map *, linkmap_callback);
 unsigned long search_mem(HIJACK *, unsigned long, size_t, void *, size_t);
 

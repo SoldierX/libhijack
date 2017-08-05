@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2013, Shawn Webb
+ * Copyright (c) 2011-2017, Shawn Webb
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -22,8 +22,9 @@
 
 int SetError(HIJACK *hijack, int errorCode)
 {
+
 	hijack->lastErrorCode = errorCode;
-	return errorCode;
+	return (errorCode);
 }
 
 /**
@@ -33,5 +34,6 @@ int SetError(HIJACK *hijack, int errorCode)
  */
 EXPORTED_SYM void ClearError(HIJACK *hijack)
 {
+
 	hijack->lastErrorCode = ERROR_NONE;
 }

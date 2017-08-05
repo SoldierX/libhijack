@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2013, Shawn Webb
+ * Copyright (c) 2011-2017, Shawn Webb
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -32,7 +32,8 @@
 
 unsigned long map_memory(HIJACK *hijack, size_t sz, unsigned long prot, unsigned long flags)
 {	
-	return map_memory_absolute(hijack, (unsigned long)NULL, sz, prot, flags);
+
+	return (map_memory_absolute(hijack, (unsigned long)NULL, sz, prot, flags));
 }
 
 unsigned long map_memory_absolute(HIJACK *hijack, unsigned long addr, size_t sz, unsigned long prot, unsigned long flags)
@@ -47,155 +48,80 @@ unsigned long map_memory_absolute(HIJACK *hijack, unsigned long addr, size_t sz,
 	mmap_args.prot = prot;
 	mmap_args.len = sz;
 	
-	return map_memory_args(hijack, sz, &mmap_args);
+	return (map_memory_args(hijack, sz, &mmap_args));
 }
 
 unsigned long map_memory_args(HIJACK *hijack, size_t sz, struct mmap_arg_struct *mmap_args)
 {
 	REGS regs_backup, *regs;
-	int i;
-	int err = ERROR_NONE;
-	unsigned long ret = (unsigned long)NULL;
+	int status;
+	int err;
+	unsigned long ret;
 	unsigned long addr;
+
+	ret = (unsigned long)NULL;
+	err = ERROR_NONE;
 	
 	regs = _hijack_malloc(hijack, sizeof(REGS));
 	
-#if defined(FreeBSD)
-    if (ptrace(PTRACE_GETREGS, hijack->pid, (caddr_t)regs, 0) < 0) {
-        err = ERROR_SYSCALL;
-        goto end;
-    }
-    memcpy(&regs_backup, regs, sizeof(REGS));
-
-    regs->r_rax = MMAPSYSCALL;
-    regs->r_rip = hijack->syscalladdr;
-    regs->r_rdi = mmap_args->addr;
-    regs->r_rsi = mmap_args->len;
-    regs->r_rdx = mmap_args->prot;
-    regs->r_r10 = mmap_args->flags;
-    regs->r_r8 = -1;
-    regs->r_r9 = 0;
-    regs->r_rsp -= sizeof(unsigned long);
-
-    if (ptrace(PTRACE_SETREGS, hijack->pid, (caddr_t)regs, 0) < 0) {
-        err = ERROR_SYSCALL;
-        goto end;
-    }
-    addr = 0;
-    write_data(hijack, regs->r_rsp, &addr, sizeof(unsigned long));
-
-#else
-	if (ptrace(PTRACE_GETREGS, hijack->pid, NULL, &regs_backup) < 0) {
+	if (ptrace(PTRACE_GETREGS, hijack->pid, (caddr_t)regs, 0) < 0) {
 		err = ERROR_SYSCALL;
 		goto end;
 	}
-	memcpy(regs, &regs_backup, sizeof(REGS));
-#endif
-	
-	#if defined(i686)
-		regs->eip = (long)(hijack->syscalladdr);
-		regs->eax = MMAPSYSCALL;
-		regs->esp -= (sizeof(struct mmap_arg_struct) + (sizeof(struct mmap_arg_struct) % 4));
-		regs->ebx = regs->esp;
-		addr = regs->esp;
-		
-		if (ptrace(PTRACE_SETREGS, hijack->pid, NULL, regs) < 0) {
-			err = ERROR_SYSCALL;
-			goto end;
-		}
-		
-		write_data(hijack, addr, mmap_args, sizeof(struct mmap_arg_struct));
-		if (GetErrorCode(hijack) != ERROR_NONE) {
-			err = GetErrorCode(hijack);
-			goto end;
-		}
-	#elif defined(x86_64)
-		regs->rip = hijack->syscalladdr;
-		regs->rax = MMAPSYSCALL;
-		regs->rdi = mmap_args->addr;
-		regs->rsi = mmap_args->len;
-		regs->rdx = mmap_args->prot;
-		regs->r10 = mmap_args->flags;
-		regs->r9 = mmap_args->fd;
-		regs->r8 = mmap_args->offset;
-		
-		if (ptrace(PTRACE_SETREGS, hijack->pid, NULL, regs) < 0) {
-			err = ERROR_SYSCALL;
-			goto end;
-		}
-	#endif
+	memcpy(&regs_backup, regs, sizeof(REGS));
+
+	regs->r_rax = MMAPSYSCALL;
+	regs->r_rip = hijack->syscalladdr;
+	regs->r_rdi = mmap_args->addr;
+	regs->r_rsi = mmap_args->len;
+	regs->r_rdx = mmap_args->prot;
+	regs->r_r10 = mmap_args->flags;
+	regs->r_r8 = -1;
+	regs->r_r9 = 0;
+	regs->r_rsp -= sizeof(unsigned long);
+
+	if (ptrace(PTRACE_SETREGS, hijack->pid, (caddr_t)regs, 0) < 0) {
+		err = ERROR_SYSCALL;
+		goto end;
+	}
+
+	addr = 0;
+	write_data(hijack, regs->r_rsp, &addr, sizeof(unsigned long));
 	
 	/* time to run mmap */
 	addr = MMAPSYSCALL;
 	while (addr == MMAPSYSCALL) {
-#if defined(FreeBSD)
-        if (ptrace(PTRACE_SINGLESTEP, hijack->pid, (caddr_t)0, 0) < 0)
-            err = ERROR_SYSCALL;
-#else
-		if (ptrace(PTRACE_SINGLESTEP, hijack->pid, NULL, NULL) < 0)
-			err = ERROR_SYSCALL;
-#endif
-		
+		if (ptrace(PTRACE_SINGLESTEP, hijack->pid, (caddr_t)0, 0) < 0)
+		err = ERROR_SYSCALL;
 		do {
-			waitpid(hijack->pid, &i, 0);
-		} while (!WIFSTOPPED(i));
-		
-#if defined(FreeBSD)
-        ptrace(PTRACE_GETREGS, hijack->pid, (caddr_t)regs, 0);
-        addr = regs->r_rax;
-#else
-		ptrace(PTRACE_GETREGS, hijack->pid, NULL, regs);
-#endif
-		#if defined(i686)
-			addr = regs->eax;
-		#elif defined(x86_64)
-			addr = regs->rax;
-			if (IsFlagSet(hijack, F_DEBUG_VERBOSE))
-			{
-				fprintf(stderr, "[*] rip:\t0x%016lx\n", regs->rip);
-				fprintf(stderr, "[*] rax:\t0x%016lx\n", regs->rax);
-				fprintf(stderr, "[*] rbx:\t0x%016lx\n", regs->rbx);
-				fprintf(stderr, "[*] rcx:\t0x%016lx\n", regs->rcx);
-				fprintf(stderr, "[*] rdx:\t0x%016lx\n", regs->rdx);
-				fprintf(stderr, "[*] r8:\t0x%016lx\n", regs->r8);
-				fprintf(stderr, "[*] r9:\t0x%016lx\n", regs->r9);
-				fprintf(stderr, "[*] r10:\t0x%016lx\n", regs->r10);
-			}
-		#endif
+			waitpid(hijack->pid, &status, 0);
+		} while (!WIFSTOPPED(status));
+			
+		ptrace(PTRACE_GETREGS, hijack->pid, (caddr_t)regs, 0);
+		addr = regs->r_rax;
 	}
 	
 	if ((long)addr == -1) {
 		if (IsFlagSet(hijack, F_DEBUG))
 			fprintf(stderr, "[-] Could not map address. Calling mmap failed!\n");
 		
-#if defined(FreeBSD)
-        ptrace(PTRACE_SETREGS, hijack->pid, (caddr_t)(&regs_backup), 0);
-#else
-		ptrace(PTRACE_SETREGS, hijack->pid, NULL, &regs_backup);
-#endif
+		ptrace(PTRACE_SETREGS, hijack->pid, (caddr_t)(&regs_backup), 0);
 		err = ERROR_CHILDERROR;
 		goto end;
 	}
 
 end:
-#if defined(FreeBSD)
-    if (ptrace(PTRACE_SETREGS, hijack->pid, (caddr_t)(&regs_backup), 0) < 0) {
-        err = ERROR_SYSCALL;
-    }
-#else
-	if (ptrace(PTRACE_SETREGS, hijack->pid, NULL, &regs_backup) < 0)
+	if (ptrace(PTRACE_SETREGS, hijack->pid, (caddr_t)(&regs_backup), 0) < 0)
 		err = ERROR_SYSCALL;
-#endif
 	
 	if (err == ERROR_NONE)
 		ret = addr;
 	
 	free(regs);
 	SetError(hijack, err);
-	return ret;
+	return (ret);
 }
 
-#if defined(FreeBSD)
 int inject_shellcode_freebsd(HIJACK *hijack, unsigned long addr, void *data, size_t sz)
 {
     REGS origregs;
@@ -212,82 +138,8 @@ int inject_shellcode_freebsd(HIJACK *hijack, unsigned long addr, void *data, siz
 
     return SetError(hijack, ERROR_NONE);
 }
-#endif
 
-#if defined(FreeBSD)
 int inject_shellcode(HIJACK *hijack, unsigned long addr, void *data, size_t sz) {
-    return inject_shellcode_freebsd(hijack, addr, data, sz);
-}
-#else
-int inject_shellcode(HIJACK *hijack, unsigned long addr, void *data, size_t sz)
-{
-	REGS origregs;
 
-	write_data(hijack, addr, data, sz);
-	
-	if (ptrace(PTRACE_GETREGS, hijack->pid, NULL, &origregs) < 0)
-		return SetError(hijack, ERROR_SYSCALL);
-	
-	/*
-		There's a lot of duplicated logic here for x86 and x86_64.
-		It used to be unified, but it looked ugly, so I seperated it out.
-	*/
-	#if defined(i686)
-		origregs.esp -= sizeof(unsigned long);
-		if (ptrace(PTRACE_SETREGS, hijack->pid, NULL, &origregs) < 0)
-			return SetError(hijack, ERROR_SYSCALL);
-		
-		write_data(hijack, (unsigned long)(origregs.esp), &(origregs.eip), sizeof(unsigned long));
-		origregs.eip = (long)addr;
-		
-		/*
-			EIP might need to be adjusted further, depending on if we interrupted a syscall
-			More Info: http://fxr.watson.org/fxr/source/arch/i386/kernel/signal.c?v=linux-2.6#L623
-			Link valid on 09 April 2009
-		*/
-		if (origregs.orig_eax >= 0) {
-			switch (origregs.eax) {
-				case -514: /* -ERESTARTNOHAND */
-				case -512: /* -ERESTARTSYS */
-				case -513: /* -ERESTARTNOINTR */
-				case -516: /* -ERESTART_RESTARTBLOCK */
-					if (IsFlagSet(hijack, F_DEBUG))
-						fprintf(stderr, "[*] Adjusting EIP due to syscall restart.\n");
-					
-					origregs.eip += strlen(SYSCALLSEARCH);
-					break;
-			}
-		}
-	#elif defined(x86_64)
-		origregs.rsp -= sizeof(unsigned long);
-		if (ptrace(PTRACE_SETREGS, hijack->pid, NULL, &origregs) < 0)
-			return SetError(hijack, ERROR_SYSCALL);
-		
-		if (IsFlagSet(hijack, F_DEBUG_VERBOSE))
-			fprintf(stderr, "[*] Pushing RIP: 0x%016lx\n", origregs.rip);
-		
-		write_data(hijack, origregs.rsp, &(origregs.rip), sizeof(unsigned long));
-		origregs.rip = (unsigned long)addr;
-		
-		/* Above comment about adjusting EIP is valid for x86_64, too. */
-		if (origregs.orig_rax >= 0) {
-			switch (origregs.rax) {
-				case -514: /* -ERESTARTNOHAND */
-				case -512: /* -ERESTARTSYS */
-				case -513: /* -ERESTARTNOINTR */
-				case -516: /* -ERESTART_RESTARTBLOCK */
-					if (IsFlagSet(hijack, F_DEBUG))
-						fprintf(stderr, "[*] Adjusting RIP due to syscall restart.\n");
-					
-					origregs.rip += strlen(SYSCALLSEARCH);
-					break;
-			}
-		}
-	#endif
-	
-	if (ptrace(PTRACE_SETREGS, hijack->pid,  &origregs) < 0)
-		return SetError(hijack, ERROR_SYSCALL);
-	
-	return SetError(hijack, ERROR_NONE);
+    return (inject_shellcode_freebsd(hijack, addr, data, sz));
 }
-#endif /* defined(FreeBSD) */
