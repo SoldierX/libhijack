@@ -251,7 +251,7 @@ EXPORTED_SYM int Detach(HIJACK *hijack)
 EXPORTED_SYM int LocateSystemCall(HIJACK *hijack)
 {
 #if defined(FreeBSD)
-    struct Struct_Obj_Entry *soe;
+    Obj_Entry *soe;
 #else
 	struct link_map *map;
 #endif
@@ -263,7 +263,7 @@ EXPORTED_SYM int LocateSystemCall(HIJACK *hijack)
     soe = hijack->soe;
     do {
         freebsd_parse_soe(hijack, soe, syscall_callback);
-    } while ((soe = read_data(hijack, (unsigned long)(soe->next), sizeof(struct Struct_Obj_Entry))) != NULL);
+    } while ((soe = read_data(hijack, (unsigned long)(TAILQ_NEXT(soe, next)), sizeof(*soe))) != NULL);
 #else
 	map = hijack->linkhead;
 	do {

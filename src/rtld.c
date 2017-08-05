@@ -317,6 +317,7 @@ unsigned long find_appropriate_soe(HIJACK *hijack, struct Struct_Obj_Entry **ret
 int append_soe(HIJACK *hijack, unsigned long addr, struct Struct_Obj_Entry *soe) {
     struct Struct_Obj_Entry *realsoe=NULL;
     unsigned long last_soe_addr;
+    void *ptr;
 
     last_soe_addr = find_appropriate_soe(hijack, &realsoe);
     if (!last_soe_addr) {
@@ -328,7 +329,7 @@ int append_soe(HIJACK *hijack, unsigned long addr, struct Struct_Obj_Entry *soe)
 
     if (IsFlagSet(hijack, F_DEBUG_VERBOSE)) {
         fprintf(stderr, "[*] append_soe: prev soe: 0x%016lx\n", last_soe_addr);
-        fprintf(stderr, "[*] append_soe: realsoe->next: 0x%016lx\n", (unsigned long)(realsoe->next));
+        fprintf(stderr, "[*] append_soe: realsoe->next: 0x%016lx\n", (unsigned long)(TAILQ_NEXT(realsoe, next)));
     }
 
     memset(soe, 0xff, sizeof(struct Struct_Obj_Entry));
@@ -351,7 +352,8 @@ int append_soe(HIJACK *hijack, unsigned long addr, struct Struct_Obj_Entry *soe)
         soe->gnu_ifunc = 0;
 
     soe->next = realsoe->next;
-    realsoe->next = (struct Struct_Obj_Entry *)addr;
+    ptr = &(realsoe->next);
+    memcpy(ptr, (void *)addr, sizeof(unsigned long));
     WriteData(hijack, (unsigned long)(addr), (unsigned char *)soe, sizeof(struct Struct_Obj_Entry));
     WriteData(hijack, (unsigned long)(last_soe_addr), (unsigned char *)realsoe, sizeof(struct Struct_Obj_Entry));
 
