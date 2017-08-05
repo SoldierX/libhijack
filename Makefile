@@ -1,3 +1,3 @@
-SUBDIR+=	src
+SUBDIR+=	libhijack
 
 .include <bsd.subdir.mk>
