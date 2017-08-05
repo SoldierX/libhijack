@@ -25,11 +25,6 @@
 #include <link.h>
 
 #include "hijack.h"
-#include "error.h"
-#include "misc.h"
-#include "hijack_ptrace.h"
-#include "map.h"
-#include "hijack_elf.h"
 
 int init_elf_headers(HIJACK *hijack)
 {

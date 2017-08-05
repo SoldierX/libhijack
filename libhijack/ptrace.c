@@ -20,9 +20,6 @@
 #include <sys/ptrace.h>
 
 #include "hijack.h"
-#include "error.h"
-#include "misc.h"
-#include "hijack_ptrace.h"
 
 void *read_data(HIJACK *hijack, unsigned long start, size_t sz)
 {
@@ -34,7 +31,7 @@ void *read_data(HIJACK *hijack, unsigned long start, size_t sz)
 	data = NULL;
 
 	do {
-		ptracedata = ptrace(PTRACE_PEEKTEXT, hijack->pid, (void *)((unsigned long)start + readsz), 1);
+		ptracedata = ptrace(PT_READ_D, hijack->pid, (void *)((unsigned long)start + readsz), 1);
 		if (ptracedata == -1) {
 			if (errno) {
 				SetError(hijack, ERROR_SYSCALL);
@@ -90,12 +87,12 @@ int write_data(HIJACK *hijack, unsigned long start, void *buf, size_t sz)
 
 	while (i < sz) {
 		if (i + sizeof(word) > sz) {
-			word = ptrace(PTRACE_PEEKTEXT, hijack->pid, (void *)(start + i), 0);
+			word = ptrace(PT_READ_D, hijack->pid, (void *)(start + i), 0);
 			memcpy(&word, (void *)((unsigned char *)buf + i), sz-i);
 		} else {
 			memcpy(&word, (void *)((unsigned char *)buf + i), sizeof(word));
 		}
-		if (ptrace(PTRACE_POKETEXT, hijack->pid, (void *)(start + i), word) < 0)
+		if (ptrace(PT_WRITE_D, hijack->pid, (void *)(start + i), word) < 0)
 			err = ERROR_SYSCALL;
 		
 		i += sizeof(word);

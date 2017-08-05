@@ -25,12 +25,6 @@
 #include <link.h>
 
 #include "hijack.h"
-#include "error.h"
-#include "misc.h"
-#include "hijack_ptrace.h"
-#include "map.h"
-#include "hijack_elf.h"
-#include "os_resolv.h"
 
 /*
  * Find the RTLD's linkmap. On FreeBSD, the RTLD's linkmap is the last entry.

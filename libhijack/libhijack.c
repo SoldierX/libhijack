@@ -22,11 +22,6 @@
 #include <sys/ptrace.h>
 
 #include "hijack.h"
-#include "error.h"
-#include "misc.h"
-#include "hijack_ptrace.h"
-#include "map.h"
-#include "hijack_elf.h"
 
 /**
  * Returns last reported error code
@@ -201,7 +196,7 @@ EXPORTED_SYM int Attach(HIJACK *hijack)
 	if (IsFlagSet(hijack, F_DEBUG))
 		fprintf(stderr, "[*] Attaching...\n");
 	
-	if (ptrace(PTRACE_ATTACH, hijack->pid, NULL, 0) < 0)
+	if (ptrace(PT_ATTACH, hijack->pid, NULL, 0) < 0)
 		return (SetError(hijack, ERROR_SYSCALL));
 	
 	do {
@@ -230,7 +225,7 @@ EXPORTED_SYM int Detach(HIJACK *hijack)
 	if (IsAttached(hijack) == false)
 		return SetError(hijack, ERROR_NOTATTACHED);
 	
-	if (ptrace(PTRACE_DETACH, hijack->pid, NULL, 0) < 0)
+	if (ptrace(PT_DETACH, hijack->pid, NULL, 0) < 0)
 		return SetError(hijack, ERROR_SYSCALL);
 	
 	hijack->isAttached = false;
@@ -364,7 +359,7 @@ EXPORTED_SYM REGS *GetRegs(HIJACK *hijack)
 	if (!(ret))
 		return (NULL);
 	
-	if (ptrace(PTRACE_GETREGS, hijack->pid, (caddr_t)ret, 0)) {
+	if (ptrace(PT_GETREGS, hijack->pid, (caddr_t)ret, 0)) {
 		SetError(hijack, ERROR_SYSCALL);
 		free(ret);
 		return (NULL);
@@ -385,7 +380,7 @@ EXPORTED_SYM int SetRegs(HIJACK *hijack, REGS *regs)
 	if (!IsAttached(hijack))
 		return (SetError(hijack, ERROR_NOTATTACHED));
 	
-	if (ptrace(PTRACE_SETREGS, hijack->pid, (caddr_t)regs, 0) < 0)
+	if (ptrace(PT_SETREGS, hijack->pid, (caddr_t)regs, 0) < 0)
 		return (SetError(hijack, ERROR_SYSCALL));
 	
 	return (SetError(hijack, ERROR_NONE));

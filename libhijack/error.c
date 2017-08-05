@@ -18,7 +18,6 @@
 #include <sys/types.h>
 
 #include "hijack.h"
-#include "error.h"
 
 int SetError(HIJACK *hijack, int errorCode)
 {

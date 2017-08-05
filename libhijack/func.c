@@ -21,11 +21,6 @@
 #include <link.h>
 
 #include "hijack.h"
-#include "misc.h"
-#include "error.h"
-#include "hijack_ptrace.h"
-#include "hijack_elf.h"
-#include "hijack_func.h"
 
 CBRESULT func_found(HIJACK *, void *, char *, unsigned long, size_t);
 void clean_uncached(HIJACK *);

@@ -24,11 +24,6 @@
 #include <errno.h>
 
 #include "hijack.h"
-#include "error.h"
-#include "misc.h"
-#include "hijack_ptrace.h"
-#include "hijack_elf.h"
-#include "map.h"
 
 unsigned long map_memory(HIJACK *hijack, size_t sz, unsigned long prot, unsigned long flags)
 {	
@@ -64,7 +59,7 @@ unsigned long map_memory_args(HIJACK *hijack, size_t sz, struct mmap_arg_struct 
 	
 	regs = _hijack_malloc(hijack, sizeof(REGS));
 	
-	if (ptrace(PTRACE_GETREGS, hijack->pid, (caddr_t)regs, 0) < 0) {
+	if (ptrace(PT_GETREGS, hijack->pid, (caddr_t)regs, 0) < 0) {
 		err = ERROR_SYSCALL;
 		goto end;
 	}
@@ -80,7 +75,7 @@ unsigned long map_memory_args(HIJACK *hijack, size_t sz, struct mmap_arg_struct 
 	regs->r_r9 = 0;
 	regs->r_rsp -= sizeof(unsigned long);
 
-	if (ptrace(PTRACE_SETREGS, hijack->pid, (caddr_t)regs, 0) < 0) {
+	if (ptrace(PT_SETREGS, hijack->pid, (caddr_t)regs, 0) < 0) {
 		err = ERROR_SYSCALL;
 		goto end;
 	}
@@ -91,13 +86,13 @@ unsigned long map_memory_args(HIJACK *hijack, size_t sz, struct mmap_arg_struct 
 	/* time to run mmap */
 	addr = MMAPSYSCALL;
 	while (addr == MMAPSYSCALL) {
-		if (ptrace(PTRACE_SINGLESTEP, hijack->pid, (caddr_t)0, 0) < 0)
+		if (ptrace(PT_STEP, hijack->pid, (caddr_t)0, 0) < 0)
 		err = ERROR_SYSCALL;
 		do {
 			waitpid(hijack->pid, &status, 0);
 		} while (!WIFSTOPPED(status));
 			
-		ptrace(PTRACE_GETREGS, hijack->pid, (caddr_t)regs, 0);
+		ptrace(PT_GETREGS, hijack->pid, (caddr_t)regs, 0);
 		addr = regs->r_rax;
 	}
 	
@@ -105,13 +100,13 @@ unsigned long map_memory_args(HIJACK *hijack, size_t sz, struct mmap_arg_struct 
 		if (IsFlagSet(hijack, F_DEBUG))
 			fprintf(stderr, "[-] Could not map address. Calling mmap failed!\n");
 		
-		ptrace(PTRACE_SETREGS, hijack->pid, (caddr_t)(&regs_backup), 0);
+		ptrace(PT_SETREGS, hijack->pid, (caddr_t)(&regs_backup), 0);
 		err = ERROR_CHILDERROR;
 		goto end;
 	}
 
 end:
-	if (ptrace(PTRACE_SETREGS, hijack->pid, (caddr_t)(&regs_backup), 0) < 0)
+	if (ptrace(PT_SETREGS, hijack->pid, (caddr_t)(&regs_backup), 0) < 0)
 		err = ERROR_SYSCALL;
 	
 	if (err == ERROR_NONE)
@@ -128,12 +123,12 @@ int inject_shellcode_freebsd(HIJACK *hijack, unsigned long addr, void *data, siz
 
     write_data(hijack, addr, data, sz);
 
-    if (ptrace(PTRACE_GETREGS, hijack->pid, (caddr_t)(&origregs), 0) < 0)
+    if (ptrace(PT_GETREGS, hijack->pid, (caddr_t)(&origregs), 0) < 0)
         return SetError(hijack, ERROR_SYSCALL);
 
     origregs.r_rip = addr;
 
-    if (ptrace(PTRACE_SETREGS, hijack->pid, (caddr_t)(&origregs), 0) < 0)
+    if (ptrace(PT_SETREGS, hijack->pid, (caddr_t)(&origregs), 0) < 0)
         return SetError(hijack, ERROR_SYSCALL);
 
     return SetError(hijack, ERROR_NONE);

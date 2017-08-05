@@ -30,14 +30,7 @@
 #include <link.h>
 
 #include "hijack.h"
-#include "error.h"
-#include "misc.h"
-#include "hijack_ptrace.h"
-#include "map.h"
-#include "hijack_elf.h"
-#include "os_resolv.h"
 
-#if defined(FreeBSD)
 struct rtld_loadable {
     union {
         void *ptr;
@@ -384,9 +377,3 @@ EXPORTED_SYM int load_library(HIJACK *hijack, char *path)
 
     return 0;
 }
-#else
-EXPORTED_SYM int load_library(HIJACK *hijack, char *path)
-{
-    return -1;
-}
-#endif

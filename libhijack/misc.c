@@ -19,8 +19,6 @@
 #include <sys/ptrace.h>
 
 #include "hijack.h"
-#include "error.h"
-#include "misc.h"
 
 void *_hijack_malloc(HIJACK *hijack, size_t sz)
 {

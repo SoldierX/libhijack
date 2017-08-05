@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Shawn Webb
+ * Copyright (c) 2017, Shawn Webb
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -20,39 +20,60 @@
 #include <machine/reg.h>
 #include "rtld.h"
 
-#define ElfW(type) __ElfN(type)
+#if defined(amd64)
+#define	BASEADDR	0x00400000
+#define	SYSCALLSEARCH	"\x0f\x05"
+#define	MMAPSYSCALL	477
+#else
+#error Unsupported architecture
+#endif
 
-#define PTRACE_ATTACH   PT_ATTACH
-#define PTRACE_DETACH   PT_DETACH
-#define PTRACE_GETREGS  PT_GETREGS
-#define PTRACE_SETREGS  PT_SETREGS
-#define PTRACE_CONTINUE PT_CONTINUE
-#define PTRACE_PEEKTEXT PT_READ_D
-#define PTRACE_POKETEXT PT_WRITE_D
-#define PTRACE_SINGLESTEP   PT_STEP
+#define ElfW(type) __ElfN(type)
 
 #define REGS    struct reg
 
 #define EXPORTED_SYM __attribute__((visibility("default")))
 
-#define ERROR_NONE			0
-#define ERROR_ATTACHED			1
-#define ERROR_NOTATTACHED		2
-#define ERROR_BADPID			3
-#define ERROR_SYSCALL			4
-#define ERROR_NOTIMPLEMENTED		5
-#define ERROR_BADARG			6
-#define ERROR_CHILDERROR		7
-#define ERROR_NEEDED			8
+#define	ERROR_NONE			0
+#define	ERROR_ATTACHED			1
+#define	ERROR_NOTATTACHED		2
+#define	ERROR_BADPID			3
+#define	ERROR_SYSCALL			4
+#define	ERROR_NOTIMPLEMENTED		5
+#define	ERROR_BADARG			6
+#define	ERROR_CHILDERROR		7
+#define	ERROR_NEEDED			8
 
-#define F_NONE			0
-#define F_DEBUG			1
-#define F_DEBUG_VERBOSE		2
+#define	F_NONE			0
+#define	F_DEBUG			1
+#define	F_DEBUG_VERBOSE		2
 
-#define V_NONE		0
-#define V_BASEADDR	1
+#define	V_NONE		0
+#define	V_BASEADDR	1
 
-struct _func;
+typedef enum _rtld_sym_type { RTLD_SYM_UNKNOWN=0, RTLD_SYM_VAR=1, RTLD_SYM_FUNC=2 } RTLD_SYM_TYPE;
+
+typedef struct _rtld_sym {
+    RTLD_SYM_TYPE type;
+    char *name; /* Not guarantee to be non-NULL */
+
+    union {
+        void *vp;
+        unsigned long ulp;
+    } p;
+
+    size_t sz;
+} RTLD_SYM;
+
+typedef struct _func
+{
+	char *libname;
+	char *name;
+	unsigned long vaddr;
+	size_t sz;
+
+	struct _func *next;
+} FUNC;
 
 typedef struct _plt {
 	char *libname;
@@ -102,6 +123,20 @@ typedef struct _hijack {
     Obj_Entry *soe;
 } HIJACK;
 
+struct mmap_arg_struct {
+	unsigned long addr;
+	unsigned long len;
+	unsigned long prot;
+	unsigned long flags;
+	unsigned long fd;
+	unsigned long offset;
+};
+
+typedef enum _cbresult { NONE=0, CONTPROC=1, TERMPROC=2 } CBRESULT;
+
+/* params: &HIJACK, &linkmap, name, vaddr, size */
+typedef CBRESULT (*linkmap_callback)(struct _hijack *, void *, char *, unsigned long, size_t);
+
 int GetErrorCode(HIJACK *);
 const char *GetErrorString(HIJACK *);
 HIJACK *InitHijack(void);
@@ -123,5 +158,44 @@ int SetRegs(HIJACK *, REGS *);
 
 unsigned long FindFunctionInGot(HIJACK *, unsigned long, unsigned long);
 int load_library(HIJACK *, char *);
+
+int LocateAllFunctions(HIJACK *);
+FUNC *FindAllFunctionsByName(HIJACK *, char *, bool);
+FUNC *FindAllFunctionsByLibraryName_uncached(HIJACK *, char *);
+FUNC *FindAllFunctionsByLibraryName(HIJACK *, char *);
+FUNC *FindFunctionInLibraryByName(HIJACK *hijack, char *, char *);
+PLT *GetAllPLTs(HIJACK *);
+
+int init_elf_headers(HIJACK *);
+unsigned long find_pltgot(struct _hijack *);
+unsigned long find_link_map_addr(HIJACK *);
+struct link_map *get_next_linkmap(HIJACK *, unsigned long);
+void freebsd_parse_soe(HIJACK *, struct Struct_Obj_Entry *, linkmap_callback);
+void parse_linkmap(HIJACK *, struct link_map *, linkmap_callback);
+unsigned long search_mem(HIJACK *, unsigned long, size_t, void *, size_t);
+
+CBRESULT syscall_callback(HIJACK *, void *, char *, unsigned long, size_t);
+
+int init_hijack_system(HIJACK *);
+
+unsigned long find_func_addr_in_got(HIJACK *, unsigned long, unsigned long);
+
+void *read_data(struct _hijack *, unsigned long, size_t);
+char *read_str(struct _hijack *, unsigned long);
+int write_data(struct _hijack *, unsigned long, void *, size_t);
+
+unsigned long map_memory(HIJACK *, size_t, unsigned long, unsigned long);
+unsigned long map_memory_absolute(HIJACK *, unsigned long, size_t, unsigned long, unsigned long);
+unsigned long map_memory_args(HIJACK *, size_t, struct mmap_arg_struct *);
+int inject_shellcode(HIJACK *, unsigned long, void *, size_t);
+
+void *_hijack_malloc(HIJACK *, size_t);
+void _hijack_free(HIJACK *, void *, size_t);
+
+unsigned long find_rtld_linkmap(HIJACK *);
+RTLD_SYM *resolv_rtld_sym(HIJACK *, char *);
+
+int SetError(HIJACK *, int);
+void ClearError(HIJACK *);
 
 #endif
