@@ -44,6 +44,9 @@ read_data(HIJACK *hijack, unsigned long start, size_t sz)
 	void *data, *tmpdata;
 	long ptracedata;
 	size_t readsz;
+
+	if (start == (unsigned long)NULL)
+		return (NULL);
 	
 	readsz = 0;
 	data = NULL;

@@ -149,7 +149,6 @@ freebsd_parse_soe(HIJACK *hijack, struct Struct_Obj_Entry *soe, linkmap_callback
     numsyms = soe->nchains;
     symaddr = (unsigned long)(soe->symtab);
 
-    /* With the SOE, our goal is the same as with Linux's linkmap: resolve hijackable symbols (functions). */
     do
     {
         if ((libsym))

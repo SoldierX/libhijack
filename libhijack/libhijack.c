@@ -280,7 +280,7 @@ Detach(HIJACK *hijack)
 EXPORTED_SYM int
 LocateSystemCall(HIJACK *hijack)
 {
-	Obj_Entry *soe;
+	Obj_Entry *soe, *next;
 	
 	if (IsAttached(hijack) == false)
 		return (SetError(hijack, ERROR_NOTATTACHED));
@@ -288,8 +288,13 @@ LocateSystemCall(HIJACK *hijack)
 	soe = hijack->soe;
 	do {
 		freebsd_parse_soe(hijack, soe, syscall_callback);
+		next = TAILQ_NEXT(soe, next);
+		if (soe != hijack->soe)
+			free(soe);
+		if (hijack->syscalladdr != (unsigned long)NULL)
+			break;
 		soe = read_data(hijack,
-		    (unsigned long)TAILQ_NEXT(soe, next),
+		    (unsigned long)next,
 		    sizeof(*soe));
 	} while (soe != NULL);
 	
