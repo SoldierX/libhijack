@@ -33,6 +33,9 @@
 #include <unistd.h>
 #include <getopt.h>
 
+#include <sys/types.h>
+#include <sys/mman.h>
+
 #include "hijack.h"
 
 static HIJACK *
@@ -117,6 +120,28 @@ locate_system_call(pid_t pid)
 	Detach(ctx);
 }
 
+static void
+map_memory(pid_t pid)
+{
+	HIJACK *ctx;
+	unsigned long addr;
+
+	ctx = local_hijack_init(pid);
+
+	if (LocateSystemCall(ctx)) {
+		fprintf(stderr, "Could not locate the system call: %s\n",
+		    GetErrorString(ctx));
+		Detach(ctx);
+		return;
+	}
+
+	addr = MapMemory(ctx, (unsigned long)NULL, 4096, PROT_NONE, MAP_SHARED | MAP_ANON);
+
+	printf("[+] New mapping is at 0x%016lx\n", addr);
+
+	Detach(ctx);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -124,13 +149,16 @@ main(int argc, char *argv[])
 	int ch;
 
 	pid = 0;
-	while ((ch = getopt(argc, argv, "Psp:")) != -1) {
+	while ((ch = getopt(argc, argv, "mPsp:")) != -1) {
 		switch (ch) {
 		case 'p':
 			if (sscanf(optarg, "%d", &pid) != 1) {
 				printf("lolwut\n");
 				exit(1);
 			}
+			break;
+		case 'm':
+			map_memory(pid);
 			break;
 		case 'P':
 			print_all_functions(pid);
