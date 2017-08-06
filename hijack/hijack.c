@@ -35,25 +35,12 @@
 
 #include "hijack.h"
 
-int
-main(int argc, char *argv[])
+static HIJACK *
+local_hijack_init(pid_t pid)
 {
 	HIJACK *ctx;
-	int ch;
-	pid_t pid;
 
-	while ((ch = getopt(argc, argv, "p:")) != -1) {
-		switch (ch) {
-		case 'p':
-			if (sscanf(optarg, "%d", &pid) != 1) {
-				printf("lolwut\n");
-				exit(1);
-			}
-			break;
-		}
-	}
-
-	ctx = InitHijack(F_NONE);
+	ctx = InitHijack(F_DEFAULT);
 	if (ctx == NULL) {
 		fprintf(stderr, "Could not create hijack ctx\n");
 		exit(1);
@@ -70,9 +57,67 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 
-	printf("Base address: 0x%016lx\n", ctx->baseaddr);
+	return (ctx);
+}
+
+static void
+print_all_functions(pid_t pid)
+{
+	unsigned long addr;
+	PLT *plts, *plt;
+	HIJACK *ctx;
+	FUNC *func;
+
+	ctx = local_hijack_init(pid);
+
+	if (LocateAllFunctions(ctx)) {
+		fprintf(stderr, "Could not cache functions: %s\n",
+		    GetErrorString(ctx));
+	}
+
+	plts = GetAllPLTs(ctx);
+	for (plt = plts; plt != NULL; plt = plt->next) {
+		printf("[+] Looking in %s\n", plt->libname);
+
+		for (func = ctx->funcs; func != NULL; func = func->next) {
+			if (func->name == NULL)
+				continue;
+
+			addr = FindFunctionInGot(ctx, plt->p.ptr, func->vaddr);
+
+			printf("[+]    %s\t%s @ 0x%016lx (%lu)",
+			    func->libname, func->name, func->vaddr,
+			    func->sz);
+			if (addr > 0)
+				printf("        -> 0x%016lx", addr);
+
+			printf("\n");
+		}
+	}
 
 	Detach(ctx);
+}
+
+int
+main(int argc, char *argv[])
+{
+	pid_t pid;
+	int ch;
+
+	pid = 0;
+	while ((ch = getopt(argc, argv, "Pp:")) != -1) {
+		switch (ch) {
+		case 'p':
+			if (sscanf(optarg, "%d", &pid) != 1) {
+				printf("lolwut\n");
+				exit(1);
+			}
+			break;
+		case 'P':
+			print_all_functions(pid);
+			break;
+		}
+	}
 
 	return (0);
 }
