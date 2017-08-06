@@ -38,6 +38,8 @@
 
 #include "hijack.h"
 
+int M_flag = 0;
+
 static HIJACK *
 local_hijack_init(pid_t pid)
 {
@@ -88,11 +90,20 @@ print_all_functions(pid_t pid)
 
 			addr = FindFunctionInGot(ctx, plt->p.ptr, func->vaddr);
 
-			printf("[+]    %s\t%s @ 0x%016lx (%lu)",
-			    func->libname, func->name, func->vaddr,
-			    func->sz);
-			if (addr > 0)
-				printf("        -> 0x%016lx", addr);
+			if (M_flag) {
+				printf("%s\t%s\t0x%016lx:%lu",
+				    func->libname, func->name,
+				    func->vaddr, func->sz);
+				if (addr > 0)
+					printf(" 0x%016lx", addr);
+			} else {
+				printf("[+]    %s\t%s @ 0x%016lx (%lu)",
+				    func->libname, func->name,
+				    func->vaddr, func->sz);
+				if (addr > 0)
+					printf("        -> 0x%016lx", addr);
+
+			}
 
 			printf("\n");
 		}
@@ -115,7 +126,10 @@ locate_system_call(pid_t pid)
 		return;
 	}
 
-	printf("[+] System call located at 0x%016lx\n", ctx->syscalladdr);
+	if (M_flag)
+		printf("0x%016lx\n", ctx->syscalladdr);
+	else
+		printf("[+] System call located at 0x%016lx\n", ctx->syscalladdr);
 
 	Detach(ctx);
 }
@@ -137,7 +151,10 @@ map_memory(pid_t pid)
 
 	addr = MapMemory(ctx, (unsigned long)NULL, 4096, PROT_NONE, MAP_SHARED | MAP_ANON);
 
-	printf("[+] New mapping is at 0x%016lx\n", addr);
+	if (M_flag)
+		printf("0x%016lx\n", addr);
+	else
+		printf("[+] New mapping is at 0x%016lx\n", addr);
 
 	Detach(ctx);
 }
@@ -168,7 +185,7 @@ main(int argc, char *argv[])
 	int ch;
 
 	pid = 0;
-	while ((ch = getopt(argc, argv, "mPsp:r:")) != -1) {
+	while ((ch = getopt(argc, argv, "mMPsp:r:")) != -1) {
 		switch (ch) {
 		case 'p':
 			if (sscanf(optarg, "%d", &pid) != 1) {
@@ -178,6 +195,9 @@ main(int argc, char *argv[])
 			break;
 		case 'm':
 			map_memory(pid);
+			break;
+		case 'M':
+			M_flag = 1;
 			break;
 		case 'P':
 			print_all_functions(pid);
