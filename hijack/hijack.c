@@ -98,6 +98,25 @@ print_all_functions(pid_t pid)
 	Detach(ctx);
 }
 
+static void
+locate_system_call(pid_t pid)
+{
+	HIJACK *ctx;
+
+	ctx = local_hijack_init(pid);
+
+	if (LocateSystemCall(ctx)) {
+		fprintf(stderr, "Could not locate the system call: %s\n",
+		    GetErrorString(ctx));
+		Detach(ctx);
+		return;
+	}
+
+	printf("[+] System call located at 0x%016lx\n", ctx->syscalladdr);
+
+	Detach(ctx);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -105,7 +124,7 @@ main(int argc, char *argv[])
 	int ch;
 
 	pid = 0;
-	while ((ch = getopt(argc, argv, "Pp:")) != -1) {
+	while ((ch = getopt(argc, argv, "Psp:")) != -1) {
 		switch (ch) {
 		case 'p':
 			if (sscanf(optarg, "%d", &pid) != 1) {
@@ -115,6 +134,9 @@ main(int argc, char *argv[])
 			break;
 		case 'P':
 			print_all_functions(pid);
+			break;
+		case 's':
+			locate_system_call(pid);
 			break;
 		}
 	}
