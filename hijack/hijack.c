@@ -142,6 +142,25 @@ map_memory(pid_t pid)
 	Detach(ctx);
 }
 
+static void
+local_rtld_resolve(pid_t pid, char *name)
+{
+	HIJACK *ctx;
+	RTLD_SYM *sym;
+
+	ctx = local_hijack_init(pid);
+	sym = resolv_rtld_sym(ctx, name);
+
+	if (sym == NULL) {
+		printf("[-] %s not found\n", name);
+		return;
+	}
+
+	printf("[+] %s is at 0x%016lx\n", name, sym->p.ulp);
+
+	Detach(ctx);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -149,7 +168,7 @@ main(int argc, char *argv[])
 	int ch;
 
 	pid = 0;
-	while ((ch = getopt(argc, argv, "mPsp:")) != -1) {
+	while ((ch = getopt(argc, argv, "mPsp:r:")) != -1) {
 		switch (ch) {
 		case 'p':
 			if (sscanf(optarg, "%d", &pid) != 1) {
@@ -162,6 +181,9 @@ main(int argc, char *argv[])
 			break;
 		case 'P':
 			print_all_functions(pid);
+			break;
+		case 'r':
+			local_rtld_resolve(pid, optarg);
 			break;
 		case 's':
 			locate_system_call(pid);
