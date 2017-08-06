@@ -55,6 +55,11 @@ init_elf_headers(HIJACK *hijack)
 	if (!(hijack->phdr.raw))
 		return (-1);
 
+	if (hijack->ehdr.ehdr->e_type == ET_DYN) {
+		hijack->flags |= F_PIE;
+		hijack->basefixup = hijack->baseaddr;
+	}
+
 	return (0);
 }
 
@@ -75,6 +80,7 @@ find_pltgot(HIJACK *hijack)
 		if (hijack->phdr.phdr[i].p_type == PT_DYNAMIC)
 		{
 			dyn = (ElfW(Dyn) *)read_data(hijack,
+			    hijack->basefixup +
 			    (unsigned long)(hijack->phdr.phdr[i].p_vaddr),
 			    hijack->phdr.phdr[i].p_memsz);
 			break;
@@ -91,7 +97,7 @@ find_pltgot(HIJACK *hijack)
     
 	for (i=0; dyn[i].d_tag != DT_NULL; i++) {
 		if (dyn[i].d_tag == DT_PLTGOT) {
-			ret = (unsigned long)(dyn[i].d_un.d_ptr);
+			ret = hijack->basefixup + (unsigned long)(dyn[i].d_un.d_ptr);
 			free(dyn);
 			return (ret);
 		}
