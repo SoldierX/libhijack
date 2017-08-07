@@ -39,6 +39,7 @@
 #include "hijack.h"
 
 int M_flag = 0;
+int R_flag = 0;
 
 static HIJACK *
 local_hijack_init(pid_t pid)
@@ -149,7 +150,9 @@ map_memory(pid_t pid)
 		return;
 	}
 
-	addr = MapMemory(ctx, (unsigned long)NULL, 4096, PROT_NONE, MAP_SHARED | MAP_ANON);
+	addr = MapMemory(ctx, (unsigned long)NULL, 4096,
+	    PROT_READ | /* PROT_WRITE | */ PROT_EXEC,
+	    MAP_SHARED | MAP_ANON);
 
 	if (M_flag)
 		printf("0x%016lx\n", addr);
@@ -178,15 +181,43 @@ local_rtld_resolve(pid_t pid, char *name)
 	Detach(ctx);
 }
 
+static void
+inject_shellcode(pid_t pid, unsigned long addr, char *path)
+{
+	HIJACK *ctx;
+	REGS *regs;
+
+	ctx = local_hijack_init(pid);
+	if (R_flag) {
+		regs = GetRegs(ctx);
+		if (InjectShellcodeAndRun(ctx, addr, (const char *)path, true)) {
+			fprintf(stderr, "[-] Could not inject and run shellcode: %s\n",
+			    GetErrorString(ctx));
+		}
+	}
+
+	Detach(ctx);
+}
+
 int
 main(int argc, char *argv[])
 {
+	unsigned long addr;
 	pid_t pid;
 	int ch;
 
 	pid = 0;
-	while ((ch = getopt(argc, argv, "mMPsp:r:")) != -1) {
+	while ((ch = getopt(argc, argv, "mMPRsa:i:p:r:")) != -1) {
 		switch (ch) {
+		case 'a':
+			if (sscanf(optarg, "0x%016lx", &addr) != 1) {
+				printf("bad address\n");
+				exit(1);
+			}
+			break;
+		case 'i':
+			inject_shellcode(pid, addr, optarg);
+			break;
 		case 'p':
 			if (sscanf(optarg, "%d", &pid) != 1) {
 				printf("lolwut\n");
@@ -201,6 +232,9 @@ main(int argc, char *argv[])
 			break;
 		case 'P':
 			print_all_functions(pid);
+			break;
+		case 'R':
+			R_flag = 1;
 			break;
 		case 'r':
 			local_rtld_resolve(pid, optarg);
