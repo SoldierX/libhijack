@@ -23,4 +23,8 @@ CFLAGS+=	-I${.CURDIR}/../include \
 LDADD=	-lprocstat
 MAN=
 
+.if defined(PREFIX)
+LIBDIR?=	${PREFIX}/lib
+.endif
+
 .include <bsd.lib.mk>
