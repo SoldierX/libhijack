@@ -32,6 +32,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #include <sys/types.h>
 #include <sys/user.h>
@@ -39,8 +40,10 @@
 #include <sys/ptrace.h>
 
 #include <sys/param.h>
+#include <sys/mman.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <libprocstat.h>
 
@@ -388,6 +391,78 @@ InjectShellcode(HIJACK *hijack, unsigned long addr, void *data, size_t sz)
 		return (SetError(hijack, ERROR_NOTATTACHED));
 	
 	return (inject_shellcode(hijack, addr, data, sz));
+}
+
+EXPORTED_SYM int
+InjectShellcodeAndRun(HIJACK *hijack, unsigned long addr, const char *path, bool push_ret)
+{
+	struct stat sb;
+	REGS *regs;
+	int err, fd;
+	void *map;
+
+	memset(&sb, 0x00, sizeof(sb));
+	map = NULL;
+	err = ERROR_NONE;
+
+	fd = open(path, O_RDONLY);
+	if (fd < 0)
+		return (SetError(hijack, ERROR_SYSCALL));
+
+	if (fstat(fd, &sb)) {
+		err = ERROR_SYSCALL;
+		goto error;
+	}
+
+	map = mmap(NULL, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
+	if (map == (void *)MAP_FAILED && errno) {
+		perror("mmap");
+		map = NULL;
+		err = ERROR_SYSCALL;
+		goto error;
+	}
+
+	regs = GetRegs(hijack);
+	if (regs == NULL) {
+		perror("GetRegs");
+		err = ERROR_SYSCALL;
+		goto error;
+	}
+
+	if (write_data(hijack, addr, map, sb.st_size)) {
+		perror("write_data");
+		err = GetErrorCode(hijack);
+		goto error;
+	}
+
+	if (push_ret) {
+		regs->r_rsp -= sizeof(regs->r_rip);
+		err = SetRegs(hijack, regs);
+		if (err) {
+			perror("SetRegs");
+			goto error;
+		}
+
+		if (write_data(hijack, regs->r_rsp, &(regs->r_rip), sizeof(regs->r_rip))) {
+			perror("write_data(regs)");
+			err = ERROR_SYSCALL;
+			goto error;
+		}
+	}
+
+	regs->r_rip = addr;
+	err = SetRegs(hijack, regs);
+	if (err)
+		perror("SetRegs(addr)");
+
+error:
+	if (map != NULL)
+		munmap(map, sb.st_size);
+	if (fd >= 0)
+		close(fd);
+	if (regs != NULL)
+		free(regs);
+	return (SetError(hijack, err));
 }
 
 /**

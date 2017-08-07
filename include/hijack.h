@@ -176,6 +176,7 @@ int ReadData(HIJACK *, unsigned long, unsigned char *, size_t);
 int WriteData(HIJACK *, unsigned long , unsigned char *, size_t);
 unsigned long MapMemory(HIJACK *, unsigned long, size_t, unsigned long, unsigned long);
 int InjectShellcode(HIJACK *, unsigned long, void *, size_t);
+int InjectShellcodeAndRun(HIJACK *, unsigned long, const char *, bool);
 REGS *GetRegs(HIJACK *);
 int SetRegs(HIJACK *, REGS *);
 
