@@ -142,7 +142,9 @@ inject_shellcode_freebsd(HIJACK *hijack, unsigned long addr, void *data, size_t 
 {
     REGS origregs;
 
-    write_data(hijack, addr, data, sz);
+    if (write_data(hijack, addr, data, sz)) {
+	    return (GetErrorCode(hijack));
+    }
 
     if (ptrace(PT_GETREGS, hijack->pid, (caddr_t)(&origregs), 0) < 0)
         return SetError(hijack, ERROR_SYSCALL);
