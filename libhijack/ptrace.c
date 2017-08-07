@@ -101,25 +101,19 @@ read_str(HIJACK *hijack, unsigned long base)
 int
 write_data(HIJACK *hijack, unsigned long start, void *buf, size_t sz)
 {
-	size_t i;
-	int word;
+	struct ptrace_io_desc io;
 	int err;
-	
-	i = 0;
-	err = ERROR_NONE;
 
-	while (i < sz) {
-		if (i + sizeof(word) > sz) {
-			word = ptrace(PT_READ_D, hijack->pid, (void *)(start + i), 0);
-			memcpy(&word, (void *)((unsigned char *)buf + i), sz-i);
-		} else {
-			memcpy(&word, (void *)((unsigned char *)buf + i), sizeof(word));
-		}
-		if (ptrace(PT_WRITE_D, hijack->pid, (void *)(start + i), word) < 0)
-			err = ERROR_SYSCALL;
-		
-		i += sizeof(word);
+	err = 0;
+
+	io.piod_op = PIOD_WRITE_D;
+	io.piod_offs = (void *)start;
+	io.piod_addr = buf;
+	io.piod_len = sz;
+
+	if (ptrace(PT_IO, hijack->pid, (caddr_t)&io, 0) < 0) {
+		err = ERROR_SYSCALL;
 	}
-	
+
 	return SetError(hijack, err);
 }
