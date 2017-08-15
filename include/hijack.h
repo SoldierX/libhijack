@@ -199,6 +199,8 @@ register_t GetStack(REGS *);
 void SetStack(REGS *, register_t);
 register_t GetInstructionPointer(REGS *);
 void SetInstructionPointer(REGS *, register_t);
+register_t GetRegister(REGS *, const char *);
+void SetRegister(REGS *, const char *, register_t);
 
 #ifdef HIJACK_INTERNAL
 int init_elf_headers(HIJACK *);

@@ -65,3 +65,59 @@ SetInstructionPointer(REGS *regs, register_t addr)
 
 	regs->r_rip = addr;
 }
+
+register_t
+GetRegister(REGS *regs, const char *reg)
+{
+
+	if (!strcmp(reg, "syscall"))
+		return (regs->r_rax);
+	if (!strcmp(reg, "arg0"))
+		return (regs->r_rdi);
+	if (!strcmp(reg, "arg1"))
+		return (regs->r_rsi);
+	if (!strcmp(reg, "arg2"))
+		return (regs->r_rdx);
+	if (!strcmp(reg, "arg3"))
+		return (regs->r_r10);
+	if (!strcmp(reg, "arg4"))
+		return (regs->r_r8);
+	if (!strcmp(reg, "arg5"))
+		return (regs->r_r9);
+
+	return (register_t)NULL;
+}
+
+void
+SetRegister(REGS *regs, const char *reg, register_t val)
+{
+
+	if (!strcmp(reg, "syscall")) {
+		regs->r_rax = val;
+		return;
+	}
+	if (!strcmp(reg, "arg0")) {
+		regs->r_rdi = val;
+		return;
+	}
+	if (!strcmp(reg, "arg1")) {
+		regs->r_rsi = val;
+		return;
+	}
+	if (!strcmp(reg, "arg2")) {
+		regs->r_rdx = val;
+		return;
+	}
+	if (!strcmp(reg, "arg3")) {
+		regs->r_r10 = val;
+		return;
+	}
+	if (!strcmp(reg, "arg4")) {
+		regs->r_r8 = val;
+		return;
+	}
+	if (!strcmp(reg, "arg5")) {
+		regs->r_r9 = val;
+		return;
+	}
+}

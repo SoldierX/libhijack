@@ -73,6 +73,7 @@ map_memory_args(HIJACK *hijack, size_t sz, struct mmap_arg_struct *mmap_args)
 	int err;
 	unsigned long ret;
 	unsigned long addr;
+	register_t stackp;
 
 	ret = (unsigned long)NULL;
 	err = ERROR_NONE;
@@ -85,15 +86,16 @@ map_memory_args(HIJACK *hijack, size_t sz, struct mmap_arg_struct *mmap_args)
 	}
 	memcpy(&regs_backup, regs, sizeof(REGS));
 
-	regs->r_rax = MMAPSYSCALL;
-	regs->r_rip = hijack->syscalladdr;
-	regs->r_rdi = mmap_args->addr;
-	regs->r_rsi = mmap_args->len;
-	regs->r_rdx = mmap_args->prot;
-	regs->r_r10 = mmap_args->flags;
-	regs->r_r8 = -1;
-	regs->r_r9 = 0;
-	regs->r_rsp -= sizeof(unsigned long);
+	SetRegister(regs, "syscall", MMAPSYSCALL);
+	SetInstructionPointer(regs, hijack->syscalladdr);
+	SetRegister(regs, "arg0", mmap_args->addr);
+	SetRegister(regs, "arg1", mmap_args->len);
+	SetRegister(regs, "arg2", mmap_args->prot);
+	SetRegister(regs, "arg3", mmap_args->flags);
+	SetRegister(regs, "arg4", -1); /* fd */
+	SetRegister(regs, "arg5", 0); /* offset */
+	stackp = GetStack(regs) - sizeof(register_t);
+	SetStack(regs, stackp);
 
 	if (ptrace(PT_SETREGS, hijack->pid, (caddr_t)regs, 0) < 0) {
 		err = ERROR_SYSCALL;
@@ -101,7 +103,7 @@ map_memory_args(HIJACK *hijack, size_t sz, struct mmap_arg_struct *mmap_args)
 	}
 
 	addr = 0;
-	write_data(hijack, regs->r_rsp, &addr, sizeof(unsigned long));
+	write_data(hijack, stackp, &addr, sizeof(unsigned long));
 	
 	/* time to run mmap */
 	addr = MMAPSYSCALL;
@@ -149,7 +151,7 @@ inject_shellcode_freebsd(HIJACK *hijack, unsigned long addr, void *data, size_t 
     if (ptrace(PT_GETREGS, hijack->pid, (caddr_t)(&origregs), 0) < 0)
         return SetError(hijack, ERROR_SYSCALL);
 
-    origregs.r_rip = addr;
+    SetInstructionPointer(&origregs, addr);
 
     if (ptrace(PT_SETREGS, hijack->pid, (caddr_t)(&origregs), 0) < 0)
         return SetError(hijack, ERROR_SYSCALL);
