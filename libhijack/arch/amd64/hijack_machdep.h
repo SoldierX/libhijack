@@ -1,0 +1,3 @@
+#define	BASEADDR	0x00400000
+#define	SYSCALLSEARCH	"\x0f\x05"
+#define	MMAPSYSCALL	477

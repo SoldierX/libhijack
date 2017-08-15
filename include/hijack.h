@@ -37,14 +37,6 @@
 #include <machine/reg.h>
 #include "rtld.h"
 
-#if defined(amd64)
-#define	BASEADDR	0x00400000
-#define	SYSCALLSEARCH	"\x0f\x05"
-#define	MMAPSYSCALL	477
-#else
-#error Unsupported architecture
-#endif
-
 #define ElfW(type) __ElfN(type)
 
 #define REGS    struct reg

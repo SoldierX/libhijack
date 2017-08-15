@@ -48,6 +48,7 @@
 #include <libprocstat.h>
 
 #include "hijack.h"
+#include "hijack_machdep.h"
 
 static int resolve_base_address(HIJACK *);
 

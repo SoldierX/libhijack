@@ -41,6 +41,7 @@
 #include <errno.h>
 
 #include "hijack.h"
+#include "hijack_machdep.h"
 
 unsigned long
 map_memory(HIJACK *hijack, size_t sz, unsigned long prot, unsigned long flags)

@@ -42,6 +42,7 @@
 #include <link.h>
 
 #include "hijack.h"
+#include "hijack_machdep.h"
 
 int
 init_elf_headers(HIJACK *hijack)
