@@ -17,8 +17,12 @@ SRCS=	\
 CFLAGS+=	-I${.CURDIR}/../include \
 		-I/usr/src/libexec/rtld-elf \
 		-I/usr/src/libexec/rtld-elf/${MACHINE_ARCH} \
+		-I${.CURDIR}/arch/${MACHINE_ARCH} \
 		-D${MACHINE_ARCH} \
 		-DHIJACK_INTERNAL
+
+.PATH: ${.CURDIR}/arch/${MACHINE_ARCH}
+SRCS+=	regs.c
 
 LDADD=	-lprocstat
 MAN=

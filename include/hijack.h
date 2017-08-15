@@ -194,6 +194,12 @@ RTLD_SYM *resolv_rtld_sym(HIJACK *, char *);
 
 void ClearError(HIJACK *);
 
+/* Machine-dependent code */
+register_t GetStack(REGS *);
+void SetStack(REGS *, register_t);
+register_t GetInstructionPointer(REGS *);
+void SetInstructionPointer(REGS *, register_t);
+
 #ifdef HIJACK_INTERNAL
 int init_elf_headers(HIJACK *);
 unsigned long find_pltgot(struct _hijack *);

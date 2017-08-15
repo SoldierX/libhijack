@@ -400,6 +400,7 @@ InjectShellcodeAndRun(HIJACK *hijack, unsigned long addr, const char *path, bool
 	REGS *regs;
 	int err, fd;
 	void *map;
+	register_t stackp, retp;
 
 	memset(&sb, 0x00, sizeof(sb));
 	map = NULL;
@@ -436,21 +437,22 @@ InjectShellcodeAndRun(HIJACK *hijack, unsigned long addr, const char *path, bool
 	}
 
 	if (push_ret) {
-		regs->r_rsp -= sizeof(regs->r_rip);
+		stackp = GetStack(regs) - sizeof(register_t);
 		err = SetRegs(hijack, regs);
 		if (err) {
 			perror("SetRegs");
 			goto error;
 		}
 
-		if (write_data(hijack, regs->r_rsp, &(regs->r_rip), sizeof(regs->r_rip))) {
+		retp = GetInstructionPointer(regs);
+		if (write_data(hijack, (unsigned long)stackp, &retp, sizeof(retp))) {
 			perror("write_data(regs)");
 			err = ERROR_SYSCALL;
 			goto error;
 		}
 	}
 
-	regs->r_rip = addr;
+	SetInstructionPointer(regs, addr);
 	err = SetRegs(hijack, regs);
 	if (err)
 		perror("SetRegs(addr)");
