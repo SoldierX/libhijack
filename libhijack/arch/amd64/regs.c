@@ -38,35 +38,35 @@
 
 #include "hijack.h"
 
-register_t
+EXPORTED_SYM register_t
 GetStack(REGS *regs)
 {
 
 	return (regs->r_rsp);
 }
 
-void
+EXPORTED_SYM void
 SetStack(REGS *regs, register_t addr)
 {
 
 	regs->r_rsp = addr;
 }
 
-register_t
+EXPORTED_SYM register_t
 GetInstructionPointer(REGS *regs)
 {
 
 	return (regs->r_rip);
 }
 
-void
+EXPORTED_SYM void
 SetInstructionPointer(REGS *regs, register_t addr)
 {
 
 	regs->r_rip = addr;
 }
 
-register_t
+EXPORTED_SYM register_t
 GetRegister(REGS *regs, const char *reg)
 {
 
@@ -88,7 +88,7 @@ GetRegister(REGS *regs, const char *reg)
 	return (register_t)NULL;
 }
 
-void
+EXPORTED_SYM void
 SetRegister(REGS *regs, const char *reg, register_t val)
 {
 
