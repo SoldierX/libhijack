@@ -112,7 +112,7 @@ InitHijack(unsigned int flags)
 	if (flags == F_NONE)
 		flags = F_DEFAULT;
 	
-	hijack->version = "0.7.0";
+	hijack->version = "0.7.1";
 	
 	ToggleFlag(hijack, flags);
 	
