@@ -1,5 +1,7 @@
 .sinclude <src.opts.mk>
 
+.include "${.CURDIR}/../Makefile.inc"
+
 SHLIB=		hijack
 SHLIB_MAJOR=	0
 SRCS=	\
@@ -15,10 +17,9 @@ SRCS=	\
 	rtld.c
 
 CFLAGS+=	-I${.CURDIR}/../include \
-		-I/usr/src/libexec/rtld-elf \
-		-I/usr/src/libexec/rtld-elf/${MACHINE_ARCH} \
+		-I${SRCDIR}/libexec/rtld-elf \
+		-I${SRCDIR}/libexec/rtld-elf/${MACHINE_ARCH} \
 		-I${.CURDIR}/arch/${MACHINE_ARCH} \
-		-D${MACHINE_ARCH} \
 		-DHIJACK_INTERNAL
 
 .PATH: ${.CURDIR}/arch/${MACHINE_ARCH}

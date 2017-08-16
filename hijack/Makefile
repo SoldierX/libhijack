@@ -1,5 +1,7 @@
 .sinclude <src.opts.mk>
 
+.include "${.CURDIR}/../Makefile.inc"
+
 PROG=	hijack
 SRCS=	hijack.c
 MAN=
@@ -11,8 +13,8 @@ BINDIR?=	/usr/sbin
 .endif
 
 CFLAGS+=	-I${.CURDIR}/../include \
-		-I/usr/src/libexec/rtld-elf \
-		-I/usr/src/libexec/rtld-elf/${MACHINE_ARCH} \
+		-I${SRCDIR}/libexec/rtld-elf \
+		-I${SRCDIR}/libexec/rtld-elf/${MACHINE_ARCH} \
 		-D${MACHINE_ARCH}
 LDFLAGS+=	-L${.CURDIR}/../libhijack/obj
 
