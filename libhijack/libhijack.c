@@ -248,7 +248,8 @@ Attach(HIJACK *hijack)
 	hijack->isAttached = true;
 	
 	hijack->backup_regs = GetRegs(hijack);
-	init_hijack_system(hijack);
+	if (init_hijack_system(hijack) != 0)
+		return (GetErrorCode(hijack));
 	
 	if (IsFlagSet(hijack, F_DEBUG))
 		fprintf(stderr, "[*] Attached!\n");
@@ -544,6 +545,7 @@ resolve_base_address(HIJACK *hijack)
 	struct kinfo_vmentry *vm;
 	unsigned int i, cnt;
 	int err;
+	ElfW(Ehdr) *ehdr;
 
 	vm = NULL;
 	p = NULL;
@@ -570,11 +572,20 @@ resolve_base_address(HIJACK *hijack)
 	}
 
 	for (i = 0; i < cnt; i++) {
-		if ((vm[i].kve_protection & KVME_PROT_EXEC) == KVME_PROT_EXEC
-		    && vm[i].kve_type == KVME_TYPE_VNODE) {
-			hijack->baseaddr = (unsigned long)vm[i].kve_start;
+		if (vm[i].kve_type != KVME_TYPE_VNODE)
+			continue;
+
+		ehdr = read_data(hijack,
+		    (unsigned long)(vm[i].kve_start),
+		    getpagesize());
+		if (ehdr == NULL) {
+			goto error;
+		}
+		if (IS_ELF(*ehdr)) {
+			hijack->baseaddr = (unsigned long)(vm[i].kve_start);
 			break;
 		}
+		free(ehdr);
 	}
 
 	if (hijack->baseaddr == (unsigned long)NULL)
