@@ -52,6 +52,13 @@ init_elf_headers(HIJACK *hijack)
 	if (!(hijack->ehdr.raw))
 		return (-1);
 
+	if (!IS_ELF(*(hijack->ehdr.ehdr))) {
+		if (IsFlagSet(hijack, F_DEBUG)) {
+			fprintf(stderr, "[-] Process is not an ELF image\n");
+		}
+		return (-1);
+	}
+
 	hijack->phdr.raw = read_data(hijack, ((unsigned long)(hijack->baseaddr) + hijack->ehdr.ehdr->e_phoff), hijack->ehdr.ehdr->e_phentsize * hijack->ehdr.ehdr->e_phnum);
 	if (!(hijack->phdr.raw))
 		return (-1);
