@@ -84,6 +84,8 @@ GetRegister(REGS *regs, const char *reg)
 		return (regs->r_r8);
 	if (!strcmp(reg, "arg5"))
 		return (regs->r_r9);
+	if (!strcmp(reg, "ret"))
+		return (regs->r_rax);
 
 	return (register_t)NULL;
 }
@@ -118,6 +120,10 @@ SetRegister(REGS *regs, const char *reg, register_t val)
 	}
 	if (!strcmp(reg, "arg5")) {
 		regs->r_r9 = val;
+		return;
+	}
+	if (!strcmp(reg, "ret")) {
+		regs->r_rax = val;
 		return;
 	}
 }

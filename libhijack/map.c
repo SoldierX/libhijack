@@ -116,7 +116,7 @@ map_memory_args(HIJACK *hijack, size_t sz, struct mmap_arg_struct *mmap_args)
 		} while (!WIFSTOPPED(status));
 			
 		ptrace(PT_GETREGS, hijack->pid, (caddr_t)regs, 0);
-		addr = regs->r_rax;
+		addr = GetRegister(regs, "ret");
 	}
 	
 	if ((long)addr == -1) {
