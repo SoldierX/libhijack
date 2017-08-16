@@ -41,38 +41,30 @@
 void *
 read_data(HIJACK *hijack, unsigned long start, size_t sz)
 {
-	void *data, *tmpdata;
-	long ptracedata;
-	size_t readsz;
+	struct ptrace_io_desc io;
+	void *buf;
 
-	if (start == (unsigned long)NULL)
+	buf = calloc(1, sz);
+	if (buf == NULL) {
+		SetError(hijack, ERROR_SYSCALL);
 		return (NULL);
-	
-	readsz = 0;
-	data = NULL;
+	}
 
-	do {
-		ptracedata = ptrace(PT_READ_D, hijack->pid, (void *)((unsigned long)start + readsz), 1);
-		if (ptracedata == -1) {
-			if (errno) {
-				SetError(hijack, ERROR_SYSCALL);
-				return data;
-			}
-		}
-		
-		tmpdata = realloc(data, readsz+1);
-		if (!(tmpdata)) {
-			SetError(hijack, ERROR_SYSCALL);
-			return data;
-		}
-		data = tmpdata;
-		
-		((unsigned char *)data)[readsz] = (unsigned char)(ptracedata & 0x000000ff);
-		
-	} while (readsz++ < sz);
-	
+	io.piod_op = PIOD_READ_D;
+	io.piod_offs = (void *)start;
+	io.piod_addr = buf;
+	io.piod_len = sz;
+
+	if (ptrace(PT_IO, hijack->pid, (caddr_t)&io, 0) < 0) {
+		if (IsFlagSet(hijack, F_DEBUG))
+			perror("ptrace");
+		SetError(hijack, ERROR_SYSCALL);
+		free(buf);
+		return (NULL);
+	}
+
 	SetError(hijack, ERROR_NONE);
-	return data;
+	return (buf);
 }
 
 char *
