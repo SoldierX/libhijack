@@ -40,13 +40,21 @@
 
 int M_flag = 0;
 int R_flag = 0;
+int v_flag = 0;
 
 static HIJACK *
 local_hijack_init(pid_t pid)
 {
 	HIJACK *ctx;
+	unsigned int verbose;
 
-	ctx = InitHijack(F_DEFAULT);
+	verbose = 0;
+	if (v_flag > 0)
+		verbose |= F_DEBUG;
+	if (v_flag > 1)
+		verbose |= F_DEBUG_VERBOSE;
+
+	ctx = InitHijack(F_DEFAULT | verbose);
 	if (ctx == NULL) {
 		fprintf(stderr, "Could not create hijack ctx\n");
 		exit(1);
@@ -60,6 +68,9 @@ local_hijack_init(pid_t pid)
 	if (Attach(ctx)) {
 		fprintf(stderr, "Could not attach to the PID: %s\n",
 		    GetErrorString(ctx));
+
+		/* For good measure */
+		Detach(ctx);
 		exit(1);
 	}
 
@@ -207,7 +218,7 @@ main(int argc, char *argv[])
 	int ch;
 
 	pid = 0;
-	while ((ch = getopt(argc, argv, "mMPRsa:i:p:r:")) != -1) {
+	while ((ch = getopt(argc, argv, "mMPRsva:i:p:r:")) != -1) {
 		switch (ch) {
 		case 'a':
 			if (sscanf(optarg, "0x%016lx", &addr) != 1) {
@@ -241,6 +252,9 @@ main(int argc, char *argv[])
 			break;
 		case 's':
 			locate_system_call(pid);
+			break;
+		case 'v':
+			v_flag++;
 			break;
 		}
 	}
