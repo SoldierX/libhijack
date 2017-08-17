@@ -193,6 +193,7 @@ register_t GetInstructionPointer(REGS *);
 void SetInstructionPointer(REGS *, register_t);
 register_t GetRegister(REGS *, const char *);
 void SetRegister(REGS *, const char *, register_t);
+unsigned int GetInstructionAlignment(void);
 
 #ifdef HIJACK_INTERNAL
 int init_elf_headers(HIJACK *);

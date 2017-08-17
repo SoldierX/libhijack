@@ -23,7 +23,7 @@ CFLAGS+=	-I${.CURDIR}/../include \
 		-DHIJACK_INTERNAL
 
 .PATH: ${.CURDIR}/arch/${MACHINE_ARCH}
-SRCS+=	regs.c
+SRCS+=	inst.c regs.c
 
 LDADD=	-lprocstat
 MAN=
