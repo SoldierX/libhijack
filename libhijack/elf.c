@@ -48,9 +48,28 @@ int
 init_elf_headers(HIJACK *hijack)
 {
 
+	if (IsFlagSet(hijack, F_DEBUG) && IsFlagSet(hijack, F_DEBUG_VERBOSE))
+		fprintf(stderr, "[*] Attempting to read ELF headers from 0x%016lx\n",
+		    hijack->baseaddr);
+
 	hijack->ehdr.raw = read_data(hijack, (unsigned long)(hijack->baseaddr), sizeof(ElfW(Ehdr)));
-	if (!(hijack->ehdr.raw))
+	if (!(hijack->ehdr.raw)) {
 		return (-1);
+	}
+
+	if (!IS_ELF(*(hijack->ehdr.ehdr))) {
+		if (IsFlagSet(hijack, F_DEBUG))
+			fprintf(stderr, "[-] Process is not an ELF file\n");
+		return (-1);
+	}
+
+	if (IsFlagSet(hijack, F_DEBUG) && IsFlagSet(hijack, F_DEBUG_VERBOSE))
+		fprintf(stderr, "[*] Attempting to read process headers from 0x%016lx\n",
+		    (unsigned long)(hijack->baseaddr) + hijack->ehdr.ehdr->e_phoff);
+
+	if (IsFlagSet(hijack, F_DEBUG) && IsFlagSet(hijack, F_DEBUG_VERBOSE))
+		fprintf(stderr, "[*] process headers are at offset 0x%016lx\n",
+		    (unsigned long)(hijack->ehdr.ehdr->e_phoff));
 
 	if (!IS_ELF(*(hijack->ehdr.ehdr))) {
 		if (IsFlagSet(hijack, F_DEBUG)) {
@@ -102,9 +121,16 @@ find_pltgot(HIJACK *hijack)
 		SetError(hijack, ERROR_NEEDED);
 		return ((unsigned long)NULL);
 	}
+
+	if (hijack->flags & F_DEBUG_VERBOSE)
+		fprintf(stderr, "[*] Found dynamic phdr at 0x%016lx\n",
+		    hijack->basefixup + hijack->phdr.phdr[i].p_vaddr);
     
 	for (i=0; dyn[i].d_tag != DT_NULL; i++) {
 		if (dyn[i].d_tag == DT_PLTGOT) {
+			if (hijack->flags & F_DEBUG_VERBOSE)
+				fprintf(stderr, "[*] Found PLT/GOT at 0x%016lx\n",
+				    hijack->basefixup + (unsigned long)(dyn[i].d_un.d_ptr));
 			ret = hijack->basefixup + (unsigned long)(dyn[i].d_un.d_ptr);
 			free(dyn);
 			return (ret);
@@ -194,14 +220,25 @@ CBRESULT
 syscall_callback(HIJACK *hijack, void *linkmap, char *name, unsigned long vaddr, size_t sz)
 {
 	unsigned long syscalladdr;
-    
-	syscalladdr = search_mem(hijack, vaddr, sz, SYSCALLSEARCH, strlen(SYSCALLSEARCH));
-	if (syscalladdr)
-	{
-		hijack->syscalladdr = syscalladdr;
-		return TERMPROC;
+	unsigned int align;
+	size_t left;
+ 
+	align = GetInstructionAlignment();
+	left = sz;
+	while (left > sizeof(SYSCALLSEARCH) - 1) {
+		syscalladdr = search_mem(hijack, vaddr, left, SYSCALLSEARCH, sizeof(SYSCALLSEARCH)-1);
+		if (syscalladdr == (unsigned long)NULL)
+			break;
+
+		if ((syscalladdr % align) == 0) {
+			hijack->syscalladdr = syscalladdr;
+			return TERMPROC;
+		}
+
+		left -= (syscalladdr - vaddr);
+		vaddr += (syscalladdr - vaddr) + sizeof(SYSCALLSEARCH)-1;
 	}
-    
+ 
 	return CONTPROC;
 }
 
