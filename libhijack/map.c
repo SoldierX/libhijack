@@ -95,16 +95,11 @@ map_memory_args(HIJACK *hijack, size_t sz, struct mmap_arg_struct *mmap_args)
 	SetRegister(regs, "arg3", mmap_args->flags);
 	SetRegister(regs, "arg4", -1); /* fd */
 	SetRegister(regs, "arg5", 0); /* offset */
-	stackp = GetStack(regs) - sizeof(register_t);
-	SetStack(regs, stackp);
 
 	if (ptrace(PT_SETREGS, hijack->pid, (caddr_t)regs, 0) < 0) {
 		err = ERROR_SYSCALL;
 		goto end;
 	}
-
-	addr = 0;
-	write_data(hijack, stackp, &addr, sizeof(unsigned long));
 	
 	/* time to run mmap */
 	addr = MMAPSYSCALL;
