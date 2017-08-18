@@ -69,70 +69,8 @@ map_memory_absolute(HIJACK *hijack, unsigned long addr, size_t sz, unsigned long
 unsigned long
 map_memory_args(HIJACK *hijack, size_t sz, struct mmap_arg_struct *mmap_args)
 {
-	REGS regs_backup, *regs;
-	int status;
-	int err;
-	unsigned long ret;
-	unsigned long addr;
-	register_t stackp;
 
-	ret = (unsigned long)NULL;
-	err = ERROR_NONE;
-	
-	regs = _hijack_malloc(hijack, sizeof(REGS));
-	
-	if (ptrace(PT_GETREGS, hijack->pid, (caddr_t)regs, 0) < 0) {
-		err = ERROR_SYSCALL;
-		goto end;
-	}
-	memcpy(&regs_backup, regs, sizeof(REGS));
-
-	SetRegister(regs, "syscall", MMAPSYSCALL);
-	SetInstructionPointer(regs, hijack->syscalladdr);
-	SetRegister(regs, "arg0", mmap_args->addr);
-	SetRegister(regs, "arg1", mmap_args->len);
-	SetRegister(regs, "arg2", mmap_args->prot);
-	SetRegister(regs, "arg3", mmap_args->flags);
-	SetRegister(regs, "arg4", -1); /* fd */
-	SetRegister(regs, "arg5", 0); /* offset */
-
-	if (ptrace(PT_SETREGS, hijack->pid, (caddr_t)regs, 0) < 0) {
-		err = ERROR_SYSCALL;
-		goto end;
-	}
-	
-	/* time to run mmap */
-	addr = MMAPSYSCALL;
-	while (addr == MMAPSYSCALL) {
-		if (ptrace(PT_STEP, hijack->pid, (caddr_t)0, 0) < 0)
-		err = ERROR_SYSCALL;
-		do {
-			waitpid(hijack->pid, &status, 0);
-		} while (!WIFSTOPPED(status));
-			
-		ptrace(PT_GETREGS, hijack->pid, (caddr_t)regs, 0);
-		addr = GetRegister(regs, "ret");
-	}
-	
-	if ((long)addr == -1) {
-		if (IsFlagSet(hijack, F_DEBUG))
-			fprintf(stderr, "[-] Could not map address. Calling mmap failed!\n");
-		
-		ptrace(PT_SETREGS, hijack->pid, (caddr_t)(&regs_backup), 0);
-		err = ERROR_CHILDERROR;
-		goto end;
-	}
-
-end:
-	if (ptrace(PT_SETREGS, hijack->pid, (caddr_t)(&regs_backup), 0) < 0)
-		err = ERROR_SYSCALL;
-	
-	if (err == ERROR_NONE)
-		ret = addr;
-	
-	free(regs);
-	SetError(hijack, err);
-	return (ret);
+	return (md_map_memory(hijack, mmap_args));
 }
 
 int
