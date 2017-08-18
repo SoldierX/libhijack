@@ -387,7 +387,7 @@ MapMemory(HIJACK *hijack, unsigned long addr, size_t sz, unsigned long prot, uns
 	if (!IsAttached(hijack))
 		return (SetError(hijack, ERROR_NOTATTACHED));
 	
-	return (map_memory_absolute(hijack, addr, sz, prot, flags));
+	return (map_memory(hijack, addr, sz, prot, flags));
 }
 
 /**

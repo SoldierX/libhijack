@@ -207,9 +207,7 @@ unsigned long find_func_addr_in_got(HIJACK *, unsigned long, unsigned long);
 
 int SetError(HIJACK *, int);
 
-unsigned long map_memory(HIJACK *, size_t, unsigned long, unsigned long);
-unsigned long map_memory_absolute(HIJACK *, unsigned long, size_t, unsigned long, unsigned long);
-unsigned long map_memory_args(HIJACK *, size_t, struct mmap_arg_struct *);
+unsigned long map_memory(HIJACK *, unsigned long, size_t, unsigned long, unsigned long);
 int inject_shellcode_freebsd(HIJACK *, unsigned long, void *, size_t);
 int inject_shellcode(HIJACK *, unsigned long, void *, size_t);
 

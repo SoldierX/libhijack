@@ -44,16 +44,8 @@
 #include "hijack_machdep.h"
 
 unsigned long
-map_memory(HIJACK *hijack, size_t sz, unsigned long prot, unsigned long flags)
+map_memory(HIJACK *hijack, unsigned long addr, size_t sz, unsigned long prot, unsigned long flags)
 {	
-
-	return (map_memory_absolute(hijack, (unsigned long)NULL, sz, prot, flags));
-}
-
-unsigned long
-map_memory_absolute(HIJACK *hijack, unsigned long addr, size_t sz, unsigned long prot, unsigned long flags)
-{
-	/* XXX mamp_arg_struct is only used in 32bit */
 	struct mmap_arg_struct mmap_args;
 	
 	/* Set up arguments to pass to mmap */
@@ -63,14 +55,7 @@ map_memory_absolute(HIJACK *hijack, unsigned long addr, size_t sz, unsigned long
 	mmap_args.prot = prot;
 	mmap_args.len = sz;
 	
-	return (map_memory_args(hijack, sz, &mmap_args));
-}
-
-unsigned long
-map_memory_args(HIJACK *hijack, size_t sz, struct mmap_arg_struct *mmap_args)
-{
-
-	return (md_map_memory(hijack, mmap_args));
+	return (md_map_memory(hijack, &mmap_args));
 }
 
 int
