@@ -3,7 +3,7 @@
 .include "${.CURDIR}/../Makefile.inc"
 
 SHLIB=		hijack
-SHLIB_MAJOR=	0
+SHLIB_MAJOR=	1
 SRCS=	\
 	elf.c \
 	elf.c \
