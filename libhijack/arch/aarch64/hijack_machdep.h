@@ -31,7 +31,7 @@
 #define	_HIJACK_MACHDEP
 
 #define	BASEADDR	0x00400000
-#define	SYSCALLSEARCH	"\x0f\x05"
+#define	SYSCALLSEARCH	"\x01\x00\x00\xd4"
 #define	MMAPSYSCALL	477
 
 #endif /* !_HIJACK_MACHDEP */
