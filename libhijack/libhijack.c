@@ -289,6 +289,9 @@ LocateSystemCall(HIJACK *hijack)
 	
 	if (IsAttached(hijack) == false)
 		return (SetError(hijack, ERROR_NOTATTACHED));
+
+	if (IsFlagSet(hijack, F_DEBUG))
+		fprintf(stderr, "[*] Looking for syscall\n");
 	
 	soe = hijack->soe;
 	do {
@@ -302,7 +305,17 @@ LocateSystemCall(HIJACK *hijack)
 		    (unsigned long)next,
 		    sizeof(*soe));
 	} while (soe != NULL);
-	
+
+	if (hijack->syscalladdr == (unsigned long)NULL) {
+		if (IsFlagSet(hijack, F_DEBUG))
+			fprintf(stderr, "[-] Could not find the syscall\n");
+		return (SetError(hijack, ERROR_NEEDED));
+	}
+
+	if (IsFlagSet(hijack, F_DEBUG))
+		fprintf(stderr, "[+] syscall found at 0x%016lx\n",
+		    hijack->syscalladdr);
+
 	return (SetError(hijack, ERROR_NONE));
 }
 
