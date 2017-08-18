@@ -42,5 +42,5 @@ EXPORTED_SYM unsigned int
 GetInstructionAlignment(void)
 {
 
-	return (4);
+	return (8);
 }
