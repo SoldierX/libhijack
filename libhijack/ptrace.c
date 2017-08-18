@@ -63,6 +63,14 @@ read_data(HIJACK *hijack, unsigned long start, size_t sz)
 		return (NULL);
 	}
 
+	if (io.piod_len != sz) {
+		if (IsFlagSet(hijack, F_DEBUG))
+			perror("ptrace");
+		SetError(hijack, ERROR_SYSCALL);
+		free(buf);
+		return (NULL);
+	}
+
 	SetError(hijack, ERROR_NONE);
 	return (buf);
 }
