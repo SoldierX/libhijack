@@ -9,13 +9,20 @@ PLT/GOT, hence the "hijack" part of libhijack.
 *NOTE*: libhijack is undergoing a major revamp. Please do not consider
 the ABI or API as stable for the moment.
 
-Please note also that the freebsd_tests64 directory is not in a usable
-state. It's simply there for historical purposes. At some point of
-time in the near future, once the `hijack` application becomes
-fully-featured, the freebsd_tests64 directory will be deleted.
+Supported Architectures
+-----------------------
+
+* amd64
+* arm64
+
+Prerequisites
+-------------
+
+* FreeBSD source code in /usr/src matching the system libhijack is to
+  target.
 
 Building libhijack
-==================
+------------------
 
 ```
 # make depend all install
