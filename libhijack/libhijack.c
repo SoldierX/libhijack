@@ -90,6 +90,8 @@ GetErrorString(HIJACK *hijack)
 		return "Error in Child Process";
 	case ERROR_NEEDED:
 		return "Needed Object Not Found";
+	case ERROR_NOTSUPP:
+		return "Not supported";
 	default:
 		return "Unknown Error";
 	}

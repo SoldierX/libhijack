@@ -52,6 +52,7 @@
 #define	ERROR_BADARG			6
 #define	ERROR_CHILDERROR		7
 #define	ERROR_NEEDED			8
+#define	ERROR_NOTSUPP			9
 
 #define	F_NONE			0
 #define	F_DEBUG			1
