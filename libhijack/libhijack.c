@@ -583,7 +583,11 @@ IterateObjectEntries(HIJACK *hijack, soe_iterator iterator)
 		next = TAILQ_NEXT(soe, next);
 		if (soe != hijack->soe)
 			free(soe);
-		soe = read_data(hijack, (unsigned long)soe, sizeof(*soe));
+		if (next != NULL)
+			soe = read_data(hijack, (unsigned long)next,
+			    sizeof(*soe));
+		else
+			soe = NULL;
 	} while (soe != NULL);
 
 	return (0);
