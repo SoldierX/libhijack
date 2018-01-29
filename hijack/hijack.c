@@ -37,6 +37,9 @@
 #include <sys/mman.h>
 
 #include "hijack.h"
+#include "hijack_prog.h"
+
+void do_iterate_entries(pid_t);
 
 int M_flag = 0;
 int R_flag = 0;
@@ -210,6 +213,18 @@ inject_shellcode(pid_t pid, unsigned long addr, char *path)
 	Detach(ctx);
 }
 
+void
+do_iterate_entries(pid_t pid)
+{
+	HIJACK *ctx;
+
+	ctx = local_hijack_init(pid);
+	if (ctx == NULL)
+		return;
+	IterateObjectEntries(ctx, iterate_object_entries);
+	Detach(ctx);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -218,7 +233,7 @@ main(int argc, char *argv[])
 	int ch;
 
 	pid = 0;
-	while ((ch = getopt(argc, argv, "mMPRsva:i:p:r:")) != -1) {
+	while ((ch = getopt(argc, argv, "mMPRsSva:i:p:r:")) != -1) {
 		switch (ch) {
 		case 'a':
 			if (sscanf(optarg, "0x%016lx", &addr) != 1) {
@@ -252,6 +267,9 @@ main(int argc, char *argv[])
 			break;
 		case 's':
 			locate_system_call(pid);
+			break;
+		case 'S':
+			do_iterate_entries(pid);
 			break;
 		case 'v':
 			v_flag++;

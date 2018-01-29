@@ -3,7 +3,7 @@
 .include "${.CURDIR}/../Makefile.inc"
 
 PROG=	hijack
-SRCS=	hijack.c
+SRCS=	hijack.c soe.c
 MAN=
 
 .if defined(PREFIX)
