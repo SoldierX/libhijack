@@ -352,6 +352,13 @@ ReadData(HIJACK *hijack, unsigned long addr, unsigned char *buf, size_t sz)
 	return (GetErrorCode(hijack));
 }
 
+EXPORTED_SYM char *
+ReadString(HIJACK *hijack, unsigned long base)
+{
+
+	return (read_str(hijack, base));
+}
+
 /**
  * Write data to the process
  * @param hijack Pointer to the HIJACK instance
@@ -550,6 +557,36 @@ LoadLibrary(HIJACK *hijack, char *lib)
 {
 
 	return (load_library(hijack, lib));
+}
+
+EXPORTED_SYM int
+IterateObjectEntries(HIJACK *hijack, soe_iterator iterator)
+{
+	Obj_Entry *soe;
+	void *next;
+
+	if (!IsAttached(hijack)) {
+		return (SetError(hijack, ERROR_NOTATTACHED));
+	}
+
+	soe = hijack->soe;
+	do {
+		switch (iterator(hijack, soe)) {
+			case TERMPROC:
+				if (soe != hijack->soe)
+					free(soe);
+				return (0);
+			default:
+				break;
+		}
+
+		next = TAILQ_NEXT(soe, next);
+		if (soe != hijack->soe)
+			free(soe);
+		soe = read_data(hijack, (unsigned long)soe, sizeof(*soe));
+	} while (soe != NULL);
+
+	return (0);
 }
 
 static int

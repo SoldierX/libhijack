@@ -153,6 +153,8 @@ typedef enum _cbresult { NONE=0, CONTPROC=1, TERMPROC=2 } CBRESULT;
 /* params: &HIJACK, &linkmap, name, vaddr, size */
 typedef CBRESULT (*linkmap_callback)(struct _hijack *, void *, char *, unsigned long, size_t);
 
+typedef CBRESULT (*soe_iterator)(struct _hijack *, Obj_Entry *);
+
 int GetErrorCode(HIJACK *);
 const char *GetErrorString(HIJACK *);
 HIJACK *InitHijack(unsigned int);
@@ -166,12 +168,14 @@ int Attach(HIJACK *);
 int Detach(HIJACK *);
 int LocateSystemCall(HIJACK *);
 int ReadData(HIJACK *, unsigned long, unsigned char *, size_t);
+char *ReadString(HIJACK *, unsigned long);
 int WriteData(HIJACK *, unsigned long , unsigned char *, size_t);
 unsigned long MapMemory(HIJACK *, unsigned long, size_t, unsigned long, unsigned long);
 int InjectShellcode(HIJACK *, unsigned long, void *, size_t);
 int InjectShellcodeAndRun(HIJACK *, unsigned long, const char *, bool);
 REGS *GetRegs(HIJACK *);
 int SetRegs(HIJACK *, REGS *);
+int IterateObjectEntries(HIJACK *, soe_iterator);
 
 unsigned long FindFunctionInGot(HIJACK *, unsigned long, unsigned long);
 int load_library(HIJACK *, char *);
