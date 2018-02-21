@@ -399,24 +399,6 @@ MapMemory(HIJACK *hijack, unsigned long addr, size_t sz, unsigned long prot, uns
 	return (map_memory(hijack, addr, sz, prot, flags));
 }
 
-/**
- * Inject arbitrary code
- * @param hijack Pointer to the HIJACK instance
- * @param addr Address in which to write the arbitrary code
- * @param data The code to be written
- * @param sz Number of bytes to write
- * \ingroup libhijack
- */
-EXPORTED_SYM int
-InjectShellcode(HIJACK *hijack, unsigned long addr, void *data, size_t sz)
-{
-
-	if (!IsAttached(hijack))
-		return (SetError(hijack, ERROR_NOTATTACHED));
-	
-	return (inject_shellcode(hijack, addr, data, sz));
-}
-
 EXPORTED_SYM int
 InjectShellcodeAndRun(HIJACK *hijack, unsigned long addr, const char *path, bool push_ret)
 {

@@ -57,30 +57,3 @@ map_memory(HIJACK *hijack, unsigned long addr, size_t sz, unsigned long prot, un
 	
 	return (md_map_memory(hijack, &mmap_args));
 }
-
-int
-inject_shellcode_freebsd(HIJACK *hijack, unsigned long addr, void *data, size_t sz)
-{
-    REGS origregs;
-
-    if (write_data(hijack, addr, data, sz)) {
-	    return (GetErrorCode(hijack));
-    }
-
-    if (ptrace(PT_GETREGS, hijack->pid, (caddr_t)(&origregs), 0) < 0)
-        return SetError(hijack, ERROR_SYSCALL);
-
-    SetInstructionPointer(&origregs, addr);
-
-    if (ptrace(PT_SETREGS, hijack->pid, (caddr_t)(&origregs), 0) < 0)
-        return SetError(hijack, ERROR_SYSCALL);
-
-    return SetError(hijack, ERROR_NONE);
-}
-
-int
-inject_shellcode(HIJACK *hijack, unsigned long addr, void *data, size_t sz)
-{
-
-    return (inject_shellcode_freebsd(hijack, addr, data, sz));
-}

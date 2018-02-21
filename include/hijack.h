@@ -171,7 +171,6 @@ int ReadData(HIJACK *, unsigned long, unsigned char *, size_t);
 char *ReadString(HIJACK *, unsigned long);
 int WriteData(HIJACK *, unsigned long , unsigned char *, size_t);
 unsigned long MapMemory(HIJACK *, unsigned long, size_t, unsigned long, unsigned long);
-int InjectShellcode(HIJACK *, unsigned long, void *, size_t);
 int InjectShellcodeAndRun(HIJACK *, unsigned long, const char *, bool);
 int InjectShellcodeFromMemoryAndRun(HIJACK *, unsigned long, void *,
     size_t, bool);
@@ -215,8 +214,6 @@ unsigned long find_func_addr_in_got(HIJACK *, unsigned long, unsigned long);
 int SetError(HIJACK *, int);
 
 unsigned long map_memory(HIJACK *, unsigned long, size_t, unsigned long, unsigned long);
-int inject_shellcode_freebsd(HIJACK *, unsigned long, void *, size_t);
-int inject_shellcode(HIJACK *, unsigned long, void *, size_t);
 
 void *_hijack_malloc(HIJACK *, size_t);
 void _hijack_free(HIJACK *, void *, size_t);
