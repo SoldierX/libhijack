@@ -421,10 +421,8 @@ EXPORTED_SYM int
 InjectShellcodeAndRun(HIJACK *hijack, unsigned long addr, const char *path, bool push_ret)
 {
 	struct stat sb;
-	REGS *regs;
 	int err, fd;
 	void *map;
-	register_t stackp, retp;
 
 	memset(&sb, 0x00, sizeof(sb));
 	map = NULL;
@@ -447,6 +445,26 @@ InjectShellcodeAndRun(HIJACK *hijack, unsigned long addr, const char *path, bool
 		goto error;
 	}
 
+	err = InjectShellcodeFromMemoryAndRun(hijack, addr, map,
+	    sb.st_size, push_ret);
+error:
+	if (map != NULL)
+		munmap(map, sb.st_size);
+	if (fd >= 0)
+		close(fd);
+	return (err);
+}
+
+EXPORTED_SYM int
+InjectShellcodeFromMemoryAndRun(HIJACK *hijack, unsigned long addr,
+    void *map, size_t sz, bool push_ret)
+{
+	REGS *regs;
+	int err;
+	register_t stackp, retp;
+
+	err = ERROR_NONE;
+
 	regs = GetRegs(hijack);
 	if (regs == NULL) {
 		perror("GetRegs");
@@ -454,7 +472,7 @@ InjectShellcodeAndRun(HIJACK *hijack, unsigned long addr, const char *path, bool
 		goto error;
 	}
 
-	if (write_data(hijack, addr, map, sb.st_size)) {
+	if (write_data(hijack, addr, map, sz)) {
 		perror("write_data");
 		err = GetErrorCode(hijack);
 		goto error;
@@ -482,10 +500,6 @@ InjectShellcodeAndRun(HIJACK *hijack, unsigned long addr, const char *path, bool
 		perror("SetRegs(addr)");
 
 error:
-	if (map != NULL)
-		munmap(map, sb.st_size);
-	if (fd >= 0)
-		close(fd);
 	if (regs != NULL)
 		free(regs);
 	return (SetError(hijack, err));
