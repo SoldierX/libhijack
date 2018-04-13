@@ -175,53 +175,56 @@ find_link_map_addr(HIJACK *hijack)
 void
 freebsd_parse_soe(HIJACK *hijack, struct Struct_Obj_Entry *soe, linkmap_callback callback)
 {
-    int err=0;
-    ElfW(Sym) *libsym=NULL;
-    unsigned long numsyms, symaddr=0, i=0;
-    char *name;
+	int err=0;
+	ElfW(Sym) *libsym=NULL;
+	unsigned long numsyms, symaddr=0, i=0;
+	char *name;
 
-    numsyms = soe->nchains;
-    symaddr = (unsigned long)(soe->symtab);
+	numsyms = soe->nchains;
+	symaddr = (unsigned long)(soe->symtab);
 
-    do
-    {
-        if ((libsym))
-            free(libsym);
+	do
+	{
+		if ((libsym))
+		free(libsym);
 
-        libsym = (ElfW(Sym) *)read_data(hijack, (unsigned long)symaddr, sizeof(ElfW(Sym)));
-        if (!(libsym)) {
-            err = GetErrorCode(hijack);
-            goto notfound;
-        }
+		libsym = (ElfW(Sym) *)read_data(hijack, (unsigned long)symaddr, sizeof(ElfW(Sym)));
+		if (!(libsym)) {
+			err = GetErrorCode(hijack);
+			goto notfound;
+		}
 
-        if (ELF64_ST_TYPE(libsym->st_info) != STT_FUNC) {
-            symaddr += sizeof(ElfW(Sym));
-            continue;
-        }
+		name = read_str(hijack, (unsigned long)(soe->strtab + libsym->st_name));
+		if ((name)) {
+			if (callback(hijack, soe,
+			    ELF64_ST_TYPE(libsym->st_info), name,
+			    ((unsigned long)(soe->mapbase) + libsym->st_value),
+			    (size_t)(libsym->st_size)) != CONTPROC) {
+				free(name);
+				break;
+			}
 
-        name = read_str(hijack, (unsigned long)(soe->strtab + libsym->st_name));
-        if ((name)) {
-            if (callback(hijack, soe, name, ((unsigned long)(soe->mapbase) + libsym->st_value), (size_t)(libsym->st_size)) != CONTPROC) {
-                free(name);
-                break;
-            }
+			free(name);
+		}
 
-            free(name);
-        }
-
-        symaddr += sizeof(ElfW(Sym));
-    } while (i++ < numsyms);
+		symaddr += sizeof(ElfW(Sym));
+	} while (i++ < numsyms);
 
 notfound:
-    SetError(hijack, err);
+	SetError(hijack, err);
 }
 
 CBRESULT
-syscall_callback(HIJACK *hijack, void *linkmap, char *name, unsigned long vaddr, size_t sz)
+syscall_callback(HIJACK *hijack, void *linkmap,
+    unsigned char symtype, char *name, unsigned long vaddr, size_t sz)
 {
 	unsigned long syscalladdr;
 	unsigned int align;
 	size_t left;
+
+	if (symtype != STT_FUNC) {
+		return (CONTPROC);
+	}
  
 	align = GetInstructionAlignment();
 	left = sz;
@@ -232,14 +235,14 @@ syscall_callback(HIJACK *hijack, void *linkmap, char *name, unsigned long vaddr,
 
 		if ((syscalladdr % align) == 0) {
 			hijack->syscalladdr = syscalladdr;
-			return TERMPROC;
+			return (TERMPROC);
 		}
 
 		left -= (syscalladdr - vaddr);
 		vaddr += (syscalladdr - vaddr) + sizeof(SYSCALLSEARCH)-1;
 	}
  
-	return CONTPROC;
+	return (CONTPROC);
 }
 
 unsigned long

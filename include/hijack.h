@@ -150,8 +150,9 @@ struct mmap_arg_struct {
 
 typedef enum _cbresult { NONE=0, CONTPROC=1, TERMPROC=2 } CBRESULT;
 
-/* params: &HIJACK, &linkmap, name, vaddr, size */
-typedef CBRESULT (*linkmap_callback)(struct _hijack *, void *, char *, unsigned long, size_t);
+/* params: &HIJACK, &linkmap, name, symtype, vaddr, size */
+typedef CBRESULT (*linkmap_callback)(struct _hijack *, void *,
+    unsigned char, char *, unsigned long, size_t);
 
 typedef CBRESULT (*soe_iterator)(struct _hijack *, Obj_Entry *);
 
@@ -206,7 +207,7 @@ int init_elf_headers(HIJACK *);
 unsigned long find_pltgot(struct _hijack *);
 unsigned long find_link_map_addr(HIJACK *);
 void freebsd_parse_soe(HIJACK *, struct Struct_Obj_Entry *, linkmap_callback);
-CBRESULT syscall_callback(HIJACK *, void *, char *, unsigned long, size_t);
+CBRESULT syscall_callback(HIJACK *, void *, unsigned char, char *, unsigned long, size_t);
 unsigned long search_mem(HIJACK *, unsigned long, size_t, void *, size_t);
 int init_hijack_system(HIJACK *);
 unsigned long find_func_addr_in_got(HIJACK *, unsigned long, unsigned long);

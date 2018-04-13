@@ -43,8 +43,8 @@ static void clean_uncached(HIJACK *);
 static void free_func(FUNC *);
 static void print_funcs(FUNC *);
 
-static CBRESULT func_found_uncached(HIJACK *, void *, char *, unsigned long, size_t);
-static CBRESULT func_found(HIJACK *, void *, char *, unsigned long, size_t);
+static CBRESULT func_found_uncached(HIJACK *, void *, unsigned char, char *, unsigned long, size_t);
+static CBRESULT func_found(HIJACK *, void *, unsigned char, char *, unsigned long, size_t);
 
 /**
  * Find and cache all dynamically loaded functions in process
@@ -72,12 +72,18 @@ LocateAllFunctions(HIJACK *hijack)
 }
 
 static CBRESULT
-func_found(HIJACK *hijack, void *linkmap, char *name, unsigned long vaddr, size_t sz)
+func_found(HIJACK *hijack, void *linkmap, unsigned char symtype,
+    char *name, unsigned long vaddr, size_t sz)
 {
 	FUNC *f;
-	
-	if (!(linkmap))
+
+	if (symtype != STT_FUNC) {
 		return (CONTPROC);
+	}
+	
+	if (!(linkmap)) {
+		return (CONTPROC);
+	}
 	
 	if (hijack->funcs) {
 		f = hijack->funcs;
@@ -356,12 +362,18 @@ free_func(FUNC *f)
 }
 
 static CBRESULT
-func_found_uncached(HIJACK *hijack, void *linkmap, char *name, unsigned long vaddr, size_t sz)
+func_found_uncached(HIJACK *hijack, void *linkmap,
+    unsigned char symtype, char *name, unsigned long vaddr, size_t sz)
 {
 	FUNC *f;
-	
-	if (!(linkmap))
+
+	if (symtype != STT_FUNC) {
 		return (CONTPROC);
+	}
+	
+	if (!(linkmap)) {
+		return (CONTPROC);
+	}
 	
 	if (hijack->uncached_funcs) {
 		f = hijack->uncached_funcs;
