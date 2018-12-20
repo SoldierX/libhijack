@@ -261,8 +261,10 @@ rtld_hook_into_rtld(HIJACK *hijack, struct rtld_aux *aux)
 	soe.phsize = aux->ehdr.ehdr->e_phnum * sizeof(ElfW(Phdr));
 	soe.mapbase = (caddr_t)(aux->mapping);
 	soe.mapsize = aux->mapsize;
+#if 0
 	soe.textsize = round_page(aux->loadables->phdr.phdr->p_vaddr +
 	    aux->loadables->phdr.phdr->p_memsz) - aux->base_vaddr;
+#endif
 	soe.vaddrbase = aux->base_vaddr;
 	soe.relocbase = (caddr_t)(aux->mapping - aux->base_vaddr);
 	soe.dynamic = (ElfW(Dyn) *)(soe.relocbase + aux->phdyn->p_vaddr);

@@ -85,7 +85,6 @@ iterate_object_entries(HIJACK *ctx, Obj_Entry *soe)
 	printf("[SOE] mapbase: 0x%016lx\n",
 	    (unsigned long)(soe->mapbase));
 	printf("[SOE] mapsize: %zu\n", soe->mapsize);
-	printf("[SOE] textsize: %zu\n", soe->textsize);
 	printf("[SOE] vaddrbase: 0x%016lx\n", soe->vaddrbase);
 	printf("[SOE] relocbase: 0x%016lx\n",
 	    (unsigned long)(soe->relocbase));
@@ -150,8 +149,8 @@ iterate_object_entries(HIJACK *ctx, Obj_Entry *soe)
 	    (unsigned long)(soe->buckets_gnu));
 	printf("[SOE] chain_zero_gnu: 0x%016lx\n",
 	    (unsigned long)(soe->chain_zero_gnu));
-	fetch_and_print_string(ctx, "rpath", soe->rpath);
-	fetch_and_print_string(ctx, "runpath", soe->runpath);
+	fetch_and_print_string(ctx, "rpath", (void *)(soe->rpath));
+	fetch_and_print_string(ctx, "runpath", (void *)(soe->runpath));
 	printf("[SOE] needed: 0x%016lx\n",
 	    (unsigned long)(soe->needed));
 	printf("[SOE] needed_filtees: 0x%016lx\n",
