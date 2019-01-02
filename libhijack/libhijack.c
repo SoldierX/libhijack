@@ -623,6 +623,17 @@ resolve_base_address(HIJACK *hijack)
 		goto error;
 	}
 
+	/*
+	 * Look for the first memory mapping that contains a valid ELF
+	 * header. This overly simplistic algorithm breaks when the
+	 * RTLD is used to execute the application (ie:
+	 * /libexec/ld-elf.so.1 /bin/ls)
+	 *
+	 * Making this algorithm more robust is a task to be completed
+	 * later, since the vast majority of use cases do not use the
+	 * RTLD to execute applications.
+	 */
+
 	for (i = 0; i < cnt; i++) {
 		if (vm[i].kve_type != KVME_TYPE_VNODE)
 			continue;
