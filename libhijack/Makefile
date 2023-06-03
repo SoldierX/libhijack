@@ -6,7 +6,6 @@ SHLIB=		hijack
 SHLIB_MAJOR=	2
 SRCS=	\
 	elf.c \
-	elf.c \
 	error.c \
 	func.c \
 	libhijack.c \
