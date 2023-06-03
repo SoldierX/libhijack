@@ -37,7 +37,9 @@
 #include <machine/reg.h>
 #include "rtld.h"
 
+#ifndef ElfW
 #define ElfW(type) __ElfN(type)
+#endif
 
 #define REGS    struct reg
 
