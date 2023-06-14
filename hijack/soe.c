@@ -196,8 +196,6 @@ iterate_object_entries(HIJACK *ctx, Obj_Entry *soe)
 	    "true" : "false");
 	printf("[SOE] init_done: %s\n", soe->init_done ? "true" :
 	    "false");
-	printf("[SOE] tls_done: %s\n", soe->tls_done ? "true" :
-	    "false");
 	printf("[SOE] phdr_alloc: %s\n", soe->phdr_alloc ? "true" :
 	    "false");
 	printf("[SOE] z_origin: %s\n", soe->z_origin ? "true" :
