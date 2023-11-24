@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2017, Shawn Webb
+ * Copyright (c) 2011-2023, Shawn Webb
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -32,21 +32,441 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <uuid.h>
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/user.h>
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <sys/param.h>
+#include <sys/syscall.h>
+#include <sys/ptrace.h>
+#include <sys/wait.h>
+
+#include <dlfcn.h>
 
 #include <elf.h>
 #include <link.h>
 
 #include "hijack.h"
 
+typedef struct _remote_library {
+	unsigned long	 fdlopen_addr;
+	unsigned long	 memfd_create_addr;
+	unsigned long	 scratch_addr;
+
+	char		*path;
+	char		*uuid;
+	int		 local_fd;
+	int		 remote_fd;
+
+	void		*local_buf;
+	struct stat	 sb;
+
+	size_t		 scratch_size;
+} remote_library_t;
+
+static remote_library_t *remote_library_new(void);
+
+static void template_prologue(void);
+static void template(void);
+static void template_epilogue(void);
+static bool _continue_and_wait(HIJACK *, REGS *, bool);
+
 EXPORTED_SYM int
 load_library(HIJACK *hijack, char *path)
 {
+	struct ptrace_sc_remote psr;
+	unsigned long curaddr, val;
+	remote_library_t *library;
+	REGS *regs, *regs_backup;
+	struct fpreg fpbackup;
+	size_t pathlen;
+	struct stat sb;
+	void *blob, *p;
+	int fd, status;
+	size_t i;
+
+	if (hijack == NULL || path == NULL) {
+		printf("hijack or path is null\n");
+		return (-1);
+	}
+
+	memset(&fpbackup, 0, sizeof(fpbackup));
+	if (ptrace(PT_GETFPREGS, hijack->pid, (caddr_t)&fpbackup, 0)) {
+		perror("ptrace(get fpregs)");
+		return (-1);
+	}
+
+#if 0
+	if (hijack->funcs == NULL) {
+		/* For now, ensure that we've already cached all functions. */
+		printf("cache funcs, please\n");
+		return (-1);
+	}
+#endif
+
+	library = remote_library_new();
+	if (library == NULL) {
+		printf("Could not create new library object\n");
+		free(regs_backup);
+		return (-1);
+	}
+
+	pathlen = strlen(path);
+	library->local_fd = open(path, O_RDONLY);
+	if (library->local_fd < 0) {
+		return (-1);
+	}
+
+	memset(&(library->sb), 0, sizeof(library->sb));
+	fstat(library->local_fd, &(library->sb));
+
+	library->local_buf = mmap(NULL, library->sb.st_size, PROT_READ,
+	    MAP_SHARED, library->local_fd, 0);
+	if (library->local_buf == MAP_FAILED) {
+		perror("mmap");
+		return (-1);
+	}
+
+	library->fdlopen_addr = resolv_rtld_sym(hijack,
+	    "fdlopen")->p.ulp;
+	if (library->fdlopen_addr == (unsigned long)NULL) {
+		printf("could not resolve fdlopen\n");
+		return (-1);
+	}
+
+	/* Step zero: make sure we're at a syscall exit */
+	if (_continue_and_wait(hijack, regs_backup, true) == false) {
+		printf("could not continue and wait\n");
+		return (-1);
+	}
+
+	/*
+	 * Step one: create scratch memory allocation.
+	 */
+	library->scratch_size = library->sb.st_size + (getpagesize() * 2);
+	library->scratch_addr = MapMemory(hijack, (unsigned long)NULL,
+	    library->scratch_size, PROT_READ | PROT_WRITE | PROT_EXEC,
+	    MAP_SHARED | MAP_ANON);
+	if (library->scratch_addr == (unsigned long)NULL) {
+		printf("could not mmap\n");
+		return (-1);
+	}
+
+	fd = open("/tmp/fdlopen", O_RDONLY);
+	if (fd < 0) {
+		perror("open");
+		return (-1);
+	}
+
+	memset(&sb, 0, sizeof(sb));
+	fstat(fd, &sb);
+	blob = malloc(sb.st_size);
+	if (blob == NULL) {
+		perror("malloc");
+		return (-1);
+	}
+
+	read(fd, blob, sb.st_size);
+	close(fd);
+
+	val = 0x1111111111111111;
+	p = memmem(blob, sb.st_size, &val, sizeof(val));
+	if (p == NULL) {
+		return (-1);
+	}
+	val = library->remote_fd;
+	memmove(p, &val, sizeof(val));
+
+	val = 0x2222222222222222;
+	p = memmem(blob, sb.st_size, &val, sizeof(val));
+	if (p == NULL) {
+		return (-1);
+	}
+	val = library->fdlopen_addr;
+	memmove(p, &val, sizeof(val));
+
+	/*
+	 * Step two: Create shmfd.
+	 */
+
+	if (write_data(hijack, library->scratch_addr, library->uuid,
+	    strlen(library->uuid) +1)) {
+		perror("ptrace(write_uuid)");
+		printf("could not write uuid %s\n", library->uuid);
+		return (-1);
+	}
+
+	if (write_data(hijack, library->scratch_addr +
+	    strlen(library->uuid) + 1, blob, sb.st_size)) {
+		printf("Could not write blob\n");
+		return (-1);
+	}
+
+	if (write_data(hijack, library->scratch_addr + getpagesize(),
+	    library->local_buf, library->sb.st_size)) {
+		printf("could not write shared library object\n");
+		return (-1);
+	}
+
+	memset(&psr, 0, sizeof(psr));
+	psr.pscr_syscall = SYS_shm_open2;
+	psr.pscr_nargs = 5;
+	psr.pscr_args = calloc(psr.pscr_nargs, sizeof(unsigned long));
+	if (psr.pscr_args == NULL) {
+		perror("calloc");
+		return (-1);
+	}
+
+	regs_backup = GetRegs(hijack);
+	if (regs_backup == NULL) {
+		printf("Could not get registers\n");
+		return (-1);
+	}
+
+	psr.pscr_args[0] = (long)SHM_ANON;
+	psr.pscr_args[1] = O_RDWR;
+	psr.pscr_args[2] = 0;
+	psr.pscr_args[3] = SHM_GROW_ON_WRITE;
+	psr.pscr_args[4] = library->scratch_addr;
+	if (ptrace(PT_SC_REMOTE, hijack->pid, (caddr_t)&psr, sizeof(psr))) {
+		perror("ptrace(remote:__sys_shm_open2)");
+		return (-1);
+	}
+
+	if (psr.pscr_ret.sr_error) {
+		/* shm_open2 failed */
+		return (-1);
+	}
+
+	if (_continue_and_wait(hijack, regs_backup, false) == false) {
+		printf("could not continue and wait\n");
+		return (-1);
+	}
+
+	library->remote_fd = psr.pscr_ret.sr_retval[0];
+	if (library->remote_fd < 0) {
+		/* shm_open2 failed in a different way */
+		return (-1);
+	}
+
+	/* Step three: size the memfd appropriately */
+
+	memset(psr.pscr_args, 0, sizeof(unsigned long) * psr.pscr_nargs);
+	psr.pscr_nargs = 2;
+	psr.pscr_args[0] = library->remote_fd;
+	psr.pscr_args[1] = library->sb.st_size;
+	psr.pscr_syscall = SYS_ftruncate;
+	if (ptrace(PT_SC_REMOTE, hijack->pid, (caddr_t)&psr, sizeof(psr))) {
+		perror("ptrace(remote:SYS_ftruncate)");
+		return (-1);
+	}
+
+	if (psr.pscr_ret.sr_error) {
+		printf("remote truncate failed\n");
+		return (-1);
+	}
+
+	if (_continue_and_wait(hijack, regs_backup, false) == false) {
+		printf("could not continue and wait\n");
+		return (-1);
+	}
+
+	/* Step four: write to the memfd */
+
+	memset(psr.pscr_args, 0, sizeof(unsigned long) * psr.pscr_nargs);
+	memset(&(psr.pscr_ret), 0, sizeof(psr.pscr_ret));
+	psr.pscr_nargs = 3;
+	psr.pscr_args[0] = library->remote_fd;
+	psr.pscr_args[1] = library->scratch_addr + getpagesize();
+	psr.pscr_args[2] = library->sb.st_size;
+	psr.pscr_syscall = SYS_write;
+	if (ptrace(PT_SC_REMOTE, hijack->pid, (caddr_t)&psr, sizeof(psr))) {
+		perror("ptrace(remote:SYS_write)");
+		return (-1);
+	}
+
+	if (psr.pscr_ret.sr_error) {
+		printf("remote write failed\n");
+		return (-1);
+	}
+
+	printf("sb.st_size: %zu\n", library->sb.st_size);
+	printf("write from 0x%016lx returned %li\n",
+	    library->scratch_addr + getpagesize(),
+	    (ssize_t)psr.pscr_ret.sr_retval[0]);
+	printf("write returned second %li\n", psr.pscr_ret.sr_retval[1]);
+
+	/* Step five: seek to beginning */
+
+	memset(psr.pscr_args, 0, sizeof(unsigned long) * psr.pscr_nargs);
+	psr.pscr_nargs = 3;
+	psr.pscr_args[0] = library->remote_fd;
+	psr.pscr_args[1] = 0;
+	psr.pscr_args[2] = 0;
+	psr.pscr_syscall = SYS_lseek;
+	if (ptrace(PT_SC_REMOTE, hijack->pid, (caddr_t)&psr, sizeof(psr))) {
+		perror("ptrace(remote:SYS_lseek)");
+		return (-1);
+	}
+
+	if (psr.pscr_ret.sr_error) {
+		printf("remote lseek failed\n");
+		return (-1);
+	}
+
+	if (_continue_and_wait(hijack, regs_backup, false) == false) {
+		printf("could not continue and wait\n");
+		return (-1);
+	}
+
+	regs = calloc(1, sizeof(*regs));
+	if (regs == NULL) {
+		return (-1);
+	}
+	memmove(regs, regs_backup, sizeof(*regs));
+
+	curaddr = GetInstructionPointer(regs_backup);
+	val = GetStack(regs) - sizeof(unsigned long);
+	SetInstructionPointer(regs, library->fdlopen_addr);
+	SetRegister(regs, "arg0", (register_t)(library->remote_fd));
+	SetRegister(regs, "arg1", (register_t)(RTLD_GLOBAL | RTLD_NOW));
+	SetStack(regs, val);
+	if (SetRegs(hijack, regs)) {
+		perror("SetRegs");
+		return (-1);
+	}
+	write_data(hijack, val, &curaddr, sizeof(curaddr));
+
+	printf("fdlopen @ 0x%016lx\n", library->fdlopen_addr);
+	printf("fd: %d, addr: %p\n", library->remote_fd,
+	    (void *)(library->scratch_addr));
+	printf("Stack address: 0x%016lx\n", GetStack(regs));
+	printf("uuid: %s\n", library->uuid);
+	printf("ret: %p\n", (void *)curaddr);
+
+	ptrace(PT_CONTINUE, hijack->pid, (caddr_t)(library->fdlopen_addr), 0);
 
 	return (0);
+}
+
+static remote_library_t *
+remote_library_new(void)
+{
+	remote_library_t *library;
+	uint32_t status;
+	uuid_t uuid;
+
+	library = calloc(1, sizeof(*library));
+	if (library == NULL) {
+		return (NULL);
+	}
+
+	status = 0;
+	memset(&uuid, 0, sizeof(uuid));
+	uuid_create(&uuid, &status);
+	if (status != uuid_s_ok) {
+		free(library);
+		return (NULL);
+	}
+	uuid_to_string(&uuid, &(library->uuid), &status);
+	if (status != uuid_s_ok) {
+		free(library);
+		return (NULL);
+	}
+
+	library->local_fd = -1;
+
+	return (library);
+}
+
+static void
+template_prologue(void) {
+}
+
+static void
+template(void)
+{
+__asm__(
+"push %rax\n"
+"push %rbx\n"
+"push %rcx\n"
+"push %rdx\n"
+"push %rsi\n"
+"push %rdi\n"
+"push %rbp\n"
+"push %rsp\n"
+"push %r8\n"
+"push %r9\n"
+"push %r10\n"
+"push %r11\n"
+"push %r12\n"
+"push %r13\n"
+"push %r14\n"
+"push %r15\n"
+
+"mov $0x1111111111111111, %rdi\n" /* file descriptor */
+"mov $0x102, %rsi\n" /* flags */
+"mov $0x2222222222222222, %rbx\n" /* Address of fdlopen */
+"call *%rbx\n"
+
+"pop %r15\n"
+"pop %r14\n"
+"pop %r13\n"
+"pop %r12\n"
+"pop %r11\n"
+"pop %r10\n"
+"pop %r9\n"
+"pop %r8\n"
+"pop %rsp\n"
+"pop %rbp\n"
+"pop %rdi\n"
+"pop %rsi\n"
+"pop %rdx\n"
+"pop %rcx\n"
+"pop %rbx\n"
+"pop %rax\n"
+"ret\n");
+}
+
+static void
+template_epilogue(void) {
+}
+
+static bool
+_continue_and_wait(HIJACK *hijack, REGS *regs, bool really_continue)
+{
+	int status;
+
+	if (hijack == NULL) {
+		return (false);
+	}
+
+	if (really_continue) {
+#if 0
+		SetRegs(hijack, regs);
+
+		if (ptrace(PT_CONTINUE, hijack->pid, (caddr_t)1, 0)) {
+			perror("ptrace(continue)");
+			return (false);
+		}
+
+		if (ptrace(PT_TO_SCX, hijack->pid, (caddr_t)1, 0)) {
+			perror("ptrace(pt_to_scx)");
+			return (false);
+		}
+#endif
+
+		do {
+			status = 0;
+			if (waitpid(hijack->pid, &status, WNOHANG) < 0) {
+				perror("waitpid");
+				return (false);
+			}
+		} while (!WIFSTOPPED(status));
+	}
+
+	return (true);
 }

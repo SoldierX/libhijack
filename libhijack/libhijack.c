@@ -267,11 +267,19 @@ Attach(HIJACK *hijack)
 EXPORTED_SYM int
 Detach(HIJACK *hijack)
 {
+	caddr_t ret;
+	REGS *regs;
 
 	if (IsAttached(hijack) == false)
 		return SetError(hijack, ERROR_NOTATTACHED);
+
+	ret = (caddr_t)NULL;
+	regs = GetRegs(hijack);
+	if (regs != NULL) {
+		ret = (caddr_t)GetInstructionPointer(regs);
+	}
 	
-	if (ptrace(PT_DETACH, hijack->pid, NULL, 0) < 0)
+	if (ptrace(PT_DETACH, hijack->pid, (caddr_t)1, 0) < 0)
 		return SetError(hijack, ERROR_SYSCALL);
 	
 	hijack->isAttached = false;

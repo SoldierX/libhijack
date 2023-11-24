@@ -213,6 +213,17 @@ inject_shellcode(pid_t pid, unsigned long addr, char *path)
 	Detach(ctx);
 }
 
+static void
+internal_load_library(pid_t pid, char *path)
+{
+	HIJACK *ctx;
+
+	ctx = local_hijack_init(pid);
+	LocateSystemCall(ctx);
+	load_library(ctx, path);
+	Detach(ctx);
+}
+
 void
 do_iterate_entries(pid_t pid)
 {
@@ -233,7 +244,7 @@ main(int argc, char *argv[])
 	int ch;
 
 	pid = 0;
-	while ((ch = getopt(argc, argv, "mMPRsSva:i:p:r:")) != -1) {
+	while ((ch = getopt(argc, argv, "l:mMPRsSva:i:p:r:")) != -1) {
 		switch (ch) {
 		case 'a':
 			if (sscanf(optarg, "0x%016lx", &addr) != 1) {
@@ -249,6 +260,9 @@ main(int argc, char *argv[])
 				printf("lolwut\n");
 				exit(1);
 			}
+			break;
+		case 'l':
+			internal_load_library(pid, optarg);
 			break;
 		case 'm':
 			map_memory(pid);
