@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2023, Shawn Webb <shawn.webb@hardenedbsd.org>
+ * Copyright (c) 2017-2024, Shawn Webb <shawn.webb@hardenedbsd.org>
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -54,6 +54,9 @@
 #define	ERROR_CHILDERROR		7
 #define	ERROR_NEEDED			8
 #define	ERROR_NOTSUPP			9
+#define	ERROR_NOMEM			10
+#define	ERROR_FILEACCESS		11
+#define	ERROR_CHILDSYSCALL		12
 
 #define	F_NONE			0
 #define	F_DEBUG			1

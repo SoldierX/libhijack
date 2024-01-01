@@ -67,6 +67,7 @@ typedef struct _remote_library {
 } remote_library_t;
 
 static remote_library_t *remote_library_new(void);
+static void remote_library_free(remote_library_t **);
 
 static void template_prologue(void);
 static void template(void);
@@ -80,47 +81,43 @@ LoadLibraryAnonymously(HIJACK *hijack, char *path)
 	unsigned long curaddr, val;
 	remote_library_t *library;
 	REGS *regs, *regs_backup;
+	int error, fd, status;
 	struct fpreg fpbackup;
 	size_t pathlen;
 	struct stat sb;
-	int fd, status;
 	size_t i;
+
+	error = ERROR_NONE;
 
 	if (hijack == NULL || path == NULL) {
 		printf("hijack or path is null\n");
-		return (-1);
+		return (SetError(hijack, ERROR_BADARG));
 	}
 
 	memset(&fpbackup, 0, sizeof(fpbackup));
 	if (ptrace(PT_GETFPREGS, hijack->pid, (caddr_t)&fpbackup, 0)) {
 		perror("ptrace(get fpregs)");
-		return (-1);
+		return (SetError(hijack, ERROR_SYSCALL));
 	}
 
 	regs_backup = GetRegs(hijack);
 	if (regs_backup == NULL) {
 		printf("Could not get registers\n");
-		return (-1);
+		return (SetError(hijack, ERROR_SYSCALL));
 	}
-#if 0
-	if (hijack->funcs == NULL) {
-		/* For now, ensure that we've already cached all functions. */
-		printf("cache funcs, please\n");
-		return (-1);
-	}
-#endif
 
 	library = remote_library_new();
 	if (library == NULL) {
 		printf("Could not create new library object\n");
 		free(regs_backup);
-		return (-1);
+		return (SetError(hijack, ERROR_NOMEM));
 	}
 
 	pathlen = strlen(path);
 	library->local_fd = open(path, O_RDONLY);
 	if (library->local_fd < 0) {
-		return (-1);
+		error = ERROR_FILEACCESS;
+		goto end;
 	}
 
 	memset(&(library->sb), 0, sizeof(library->sb));
@@ -129,21 +126,23 @@ LoadLibraryAnonymously(HIJACK *hijack, char *path)
 	library->local_buf = mmap(NULL, library->sb.st_size, PROT_READ,
 	    MAP_SHARED, library->local_fd, 0);
 	if (library->local_buf == MAP_FAILED) {
-		perror("mmap");
-		return (-1);
+		error = ERROR_NOMEM;
+		goto end;
 	}
 
 	library->fdlopen_addr = resolv_rtld_sym(hijack,
 	    "fdlopen")->p.ulp;
 	if (library->fdlopen_addr == (unsigned long)NULL) {
 		printf("could not resolve fdlopen\n");
-		return (-1);
+		error = ERROR_CHILDERROR;
+		goto end;
 	}
 
 	/* Step zero: make sure we're at a syscall exit */
 	if (_continue_and_wait(hijack, regs_backup, true) == false) {
 		printf("could not continue and wait\n");
-		return (-1);
+		error = ERROR_CHILDERROR;
+		goto end;
 	}
 
 	/*
@@ -155,7 +154,8 @@ LoadLibraryAnonymously(HIJACK *hijack, char *path)
 	    MAP_SHARED | MAP_ANON);
 	if (library->scratch_addr == (unsigned long)NULL) {
 		printf("could not mmap\n");
-		return (-1);
+		error = ERROR_CHILDSYSCALL;
+		goto end;
 	}
 
 	/*
@@ -164,15 +164,14 @@ LoadLibraryAnonymously(HIJACK *hijack, char *path)
 
 	if (write_data(hijack, library->scratch_addr, library->uuid,
 	    strlen(library->uuid) +1)) {
-		perror("ptrace(write_uuid)");
-		printf("could not write uuid %s\n", library->uuid);
-		return (-1);
+		error = ERROR_SYSCALL;
+		goto end;
 	}
 
 	if (write_data(hijack, library->scratch_addr + getpagesize(),
 	    library->local_buf, library->sb.st_size)) {
-		printf("could not write shared library object\n");
-		return (-1);
+		error = ERROR_SYSCALL;
+		goto end;
 	}
 
 	memset(&psr, 0, sizeof(psr));
@@ -180,8 +179,8 @@ LoadLibraryAnonymously(HIJACK *hijack, char *path)
 	psr.pscr_nargs = 5;
 	psr.pscr_args = calloc(psr.pscr_nargs, sizeof(unsigned long));
 	if (psr.pscr_args == NULL) {
-		perror("calloc");
-		return (-1);
+		error = ERROR_NOMEM;
+		goto end;
 	}
 
 	psr.pscr_args[0] = (long)SHM_ANON;
@@ -190,24 +189,24 @@ LoadLibraryAnonymously(HIJACK *hijack, char *path)
 	psr.pscr_args[3] = SHM_GROW_ON_WRITE;
 	psr.pscr_args[4] = library->scratch_addr;
 	if (ptrace(PT_SC_REMOTE, hijack->pid, (caddr_t)&psr, sizeof(psr))) {
-		perror("ptrace(remote:__sys_shm_open2)");
-		return (-1);
+		error = ERROR_CHILDSYSCALL;
+		goto end;
 	}
 
 	if (psr.pscr_ret.sr_error) {
-		/* shm_open2 failed */
-		return (-1);
+		error = ERROR_CHILDSYSCALL;
+		goto end;
 	}
 
 	if (_continue_and_wait(hijack, regs_backup, true) == false) {
-		printf("could not continue and wait\n");
-		return (-1);
+		error = ERROR_CHILDERROR;
+		goto end;
 	}
 
 	library->remote_fd = psr.pscr_ret.sr_retval[0];
 	if (library->remote_fd < 0) {
-		/* shm_open2 failed in a different way */
-		return (-1);
+		error = ERROR_CHILDSYSCALL;
+		goto end;
 	}
 
 	/* Step three: size the memfd appropriately */
@@ -218,18 +217,18 @@ LoadLibraryAnonymously(HIJACK *hijack, char *path)
 	psr.pscr_args[1] = library->sb.st_size;
 	psr.pscr_syscall = SYS_ftruncate;
 	if (ptrace(PT_SC_REMOTE, hijack->pid, (caddr_t)&psr, sizeof(psr))) {
-		perror("ptrace(remote:SYS_ftruncate)");
-		return (-1);
+		error = ERROR_SYSCALL;
+		goto end;
 	}
 
 	if (psr.pscr_ret.sr_error) {
-		printf("remote truncate failed\n");
-		return (-1);
+		error = ERROR_CHILDSYSCALL;
+		goto end;
 	}
 
 	if (_continue_and_wait(hijack, regs_backup, true) == false) {
-		printf("could not continue and wait\n");
-		return (-1);
+		error = ERROR_SYSCALL;
+		goto end;
 	}
 
 	/* Step four: write to the memfd */
@@ -242,18 +241,18 @@ LoadLibraryAnonymously(HIJACK *hijack, char *path)
 	psr.pscr_args[2] = library->sb.st_size;
 	psr.pscr_syscall = SYS_write;
 	if (ptrace(PT_SC_REMOTE, hijack->pid, (caddr_t)&psr, sizeof(psr))) {
-		perror("ptrace(remote:SYS_write)");
-		return (-1);
+		error = ERROR_SYSCALL;
+		goto end;
 	}
 
 	if (psr.pscr_ret.sr_error) {
-		printf("remote write failed\n");
-		return (-1);
+		error = ERROR_CHILDSYSCALL;
+		goto end;
 	}
 
 	if (_continue_and_wait(hijack, regs_backup, true) == false) {
-		printf("could not continue and wait\n");
-		return (-1);
+		error = ERROR_SYSCALL;
+		goto end;
 	}
 
 	/* Step five: seek to beginning */
@@ -265,23 +264,24 @@ LoadLibraryAnonymously(HIJACK *hijack, char *path)
 	psr.pscr_args[2] = 0;
 	psr.pscr_syscall = SYS_lseek;
 	if (ptrace(PT_SC_REMOTE, hijack->pid, (caddr_t)&psr, sizeof(psr))) {
-		perror("ptrace(remote:SYS_lseek)");
-		return (-1);
+		error = ERROR_SYSCALL;
+		goto end;
 	}
 
 	if (psr.pscr_ret.sr_error || (ssize_t)psr.pscr_ret.sr_retval[0]) {
-		printf("remote lseek failed\n");
-		return (-1);
+		error = ERROR_CHILDSYSCALL;
+		goto end;
 	}
 
 	if (_continue_and_wait(hijack, regs_backup, true) == false) {
-		printf("could not continue and wait\n");
-		return (-1);
+		error = ERROR_SYSCALL;
+		goto end;
 	}
 
 	regs = calloc(1, sizeof(*regs));
 	if (regs == NULL) {
-		return (-1);
+		error = ERROR_NOMEM;
+		goto end;
 	}
 	memmove(regs, regs_backup, sizeof(*regs));
 
@@ -290,17 +290,19 @@ LoadLibraryAnonymously(HIJACK *hijack, char *path)
 	SetRegister(regs, "arg0", (register_t)(library->remote_fd));
 	SetRegister(regs, "arg1", (register_t)(RTLD_GLOBAL | RTLD_NOW));
 	if (!SetReturnAddress(hijack, regs, curaddr)) {
-		fprintf(stderr, "Could not set return address\n");
-		return (-1);
+		error = ERROR_CHILDSYSCALL;
+		goto end;
 	}
 	if (SetRegs(hijack, regs)) {
-		perror("SetRegs");
-		return (-1);
+		error = ERROR_SYSCALL;
+		goto end;
 	}
 
 	ptrace(PT_CONTINUE, hijack->pid, (caddr_t)1, 0);
 
-	return (0);
+end:
+	remote_library_free(&library);
+	return (SetError(hijack, error));
 }
 
 static remote_library_t *
@@ -331,6 +333,28 @@ remote_library_new(void)
 	library->local_fd = -1;
 
 	return (library);
+}
+
+static void
+remote_library_free(remote_library_t **libp)
+{
+	remote_library_t *lib;
+
+	if (libp == NULL || *libp == NULL) {
+		return;
+	}
+
+	lib = *libp;
+	*libp = NULL;
+
+	free(lib->path);
+	free(lib->uuid);
+	if (lib->local_buf != NULL) {
+		munmap(lib->local_buf, lib->sb.st_size);
+		close(lib->local_fd);
+	}
+	memset(lib, 0, sizeof(*lib));
+	free(lib);
 }
 
 static bool
