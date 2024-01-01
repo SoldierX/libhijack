@@ -74,7 +74,7 @@ static void template_epilogue(void);
 static bool _continue_and_wait(HIJACK *, REGS *, bool);
 
 EXPORTED_SYM int
-load_library(HIJACK *hijack, char *path)
+LoadLibraryAnonymously(HIJACK *hijack, char *path)
 {
 	struct ptrace_sc_remote psr;
 	unsigned long curaddr, val;

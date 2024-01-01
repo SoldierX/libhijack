@@ -181,7 +181,8 @@ int SetRegs(HIJACK *, REGS *);
 int IterateObjectEntries(HIJACK *, soe_iterator);
 
 unsigned long FindFunctionInGot(HIJACK *, unsigned long, unsigned long);
-int load_library(HIJACK *, char *);
+int LoadLibrary(HIJACK *, char *);
+int LoadLibraryAnonymously(HIJACK *, char *);
 
 int LocateAllFunctions(HIJACK *);
 FUNC *FindAllFunctionsByName(HIJACK *, char *, bool);

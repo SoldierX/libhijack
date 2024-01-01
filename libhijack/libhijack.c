@@ -559,7 +559,7 @@ EXPORTED_SYM int
 LoadLibrary(HIJACK *hijack, char *lib)
 {
 
-	return (load_library(hijack, lib));
+	return (LoadLibraryAnonymously(hijack, lib));
 }
 
 EXPORTED_SYM int
