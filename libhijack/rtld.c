@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2023, Shawn Webb
+ * Copyright (c) 2011-2024, Shawn Webb <shawn.webb@hardenedbsd.org>
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -334,59 +334,6 @@ remote_library_new(void)
 	return (library);
 }
 
-static void
-template_prologue(void) {
-}
-
-static void
-template(void)
-{
-__asm__(
-"push %rax\n"
-"push %rbx\n"
-"push %rcx\n"
-"push %rdx\n"
-"push %rsi\n"
-"push %rdi\n"
-"push %rbp\n"
-"push %rsp\n"
-"push %r8\n"
-"push %r9\n"
-"push %r10\n"
-"push %r11\n"
-"push %r12\n"
-"push %r13\n"
-"push %r14\n"
-"push %r15\n"
-
-"mov $0x1111111111111111, %rdi\n" /* file descriptor */
-"mov $0x102, %rsi\n" /* flags */
-"mov $0x2222222222222222, %rbx\n" /* Address of fdlopen */
-"call *%rbx\n"
-
-"pop %r15\n"
-"pop %r14\n"
-"pop %r13\n"
-"pop %r12\n"
-"pop %r11\n"
-"pop %r10\n"
-"pop %r9\n"
-"pop %r8\n"
-"pop %rsp\n"
-"pop %rbp\n"
-"pop %rdi\n"
-"pop %rsi\n"
-"pop %rdx\n"
-"pop %rcx\n"
-"pop %rbx\n"
-"pop %rax\n"
-"ret\n");
-}
-
-static void
-template_epilogue(void) {
-}
-
 static bool
 _continue_and_wait(HIJACK *hijack, REGS *regs, bool really_continue)
 {
@@ -398,15 +345,6 @@ _continue_and_wait(HIJACK *hijack, REGS *regs, bool really_continue)
 
 	if (really_continue) {
 		SetRegs(hijack, regs);
-
-#if 0
-		if (ptrace(PT_CONTINUE, hijack->pid, (caddr_t)1, 0)) {
-			perror("ptrace(continue)");
-			return (false);
-		}
-
-		usleep(50);
-#endif
 
 		if (ptrace(PT_TO_SCX, hijack->pid, (caddr_t)1, 0) && errno != EBUSY) {
 			perror("ptrace(pt_to_scx)");
