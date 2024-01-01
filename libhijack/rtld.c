@@ -300,6 +300,11 @@ LoadLibraryAnonymously(HIJACK *hijack, char *path)
 
 	ptrace(PT_CONTINUE, hijack->pid, (caddr_t)1, 0);
 
+	/*
+	 * TODO: Close remote file descriptor now that fdlopen has loaded the
+	 * shared object.
+	 */
+
 end:
 	remote_library_free(&library);
 	return (SetError(hijack, error));
