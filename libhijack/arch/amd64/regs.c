@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <errno.h>
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -93,6 +94,7 @@ GetRegister(REGS *regs, const char *reg)
 EXPORTED_SYM void
 SetRegister(REGS *regs, const char *reg, register_t val)
 {
+	unsigned long stackaddr;
 
 	if (!strcmp(reg, "syscall")) {
 		regs->r_rax = val;
@@ -126,4 +128,23 @@ SetRegister(REGS *regs, const char *reg, register_t val)
 		regs->r_rax = val;
 		return;
 	}
+}
+
+EXPORTED_SYM bool
+SetReturnAddress(HIJACK *hijack, REGS *regs, unsigned long retaddr)
+{
+	unsigned long stackaddr;
+	bool res;
+
+	res = true;
+	stackaddr = GetStack(regs);
+	stackaddr -= sizeof(stackaddr);
+	SetStack(regs, stackaddr);
+	if (SetRegs(hijack, regs)) {
+		fprintf(stderr, "%s: ptrace(PT_SETREGS): %s\n", __func__,
+		    strerror(errno));
+		return (false);
+	}
+
+	return (write_data(hijack, stackaddr, &retaddr, sizeof(retaddr)) == 0);
 }

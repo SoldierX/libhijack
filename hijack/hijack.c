@@ -221,7 +221,9 @@ internal_load_library(pid_t pid, char *path)
 	ctx = local_hijack_init(pid);
 	LocateSystemCall(ctx);
 	load_library(ctx, path);
+#if 0
 	Detach(ctx);
+#endif
 }
 
 void
