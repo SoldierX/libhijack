@@ -86,8 +86,6 @@ load_library(HIJACK *hijack, char *path)
 	int fd, status;
 	size_t i;
 
-	fprintf(stderr, "%s:%d here\n", __func__, __LINE__);
-
 	if (hijack == NULL || path == NULL) {
 		printf("hijack or path is null\n");
 		return (-1);
@@ -104,8 +102,6 @@ load_library(HIJACK *hijack, char *path)
 		printf("Could not get registers\n");
 		return (-1);
 	}
-	fprintf(stderr, "%s:%d here\n", __func__, __LINE__);
-
 #if 0
 	if (hijack->funcs == NULL) {
 		/* For now, ensure that we've already cached all functions. */
@@ -120,7 +116,6 @@ load_library(HIJACK *hijack, char *path)
 		free(regs_backup);
 		return (-1);
 	}
-	fprintf(stderr, "%s:%d here\n", __func__, __LINE__);
 
 	pathlen = strlen(path);
 	library->local_fd = open(path, O_RDONLY);
@@ -137,7 +132,6 @@ load_library(HIJACK *hijack, char *path)
 		perror("mmap");
 		return (-1);
 	}
-	fprintf(stderr, "%s:%d here\n", __func__, __LINE__);
 
 	library->fdlopen_addr = resolv_rtld_sym(hijack,
 	    "fdlopen")->p.ulp;
@@ -145,14 +139,12 @@ load_library(HIJACK *hijack, char *path)
 		printf("could not resolve fdlopen\n");
 		return (-1);
 	}
-	fprintf(stderr, "%s:%d here\n", __func__, __LINE__);
 
 	/* Step zero: make sure we're at a syscall exit */
 	if (_continue_and_wait(hijack, regs_backup, true) == false) {
 		printf("could not continue and wait\n");
 		return (-1);
 	}
-	fprintf(stderr, "%s:%d here\n", __func__, __LINE__);
 
 	/*
 	 * Step one: create scratch memory allocation.
@@ -165,7 +157,6 @@ load_library(HIJACK *hijack, char *path)
 		printf("could not mmap\n");
 		return (-1);
 	}
-	fprintf(stderr, "%s:%d here\n", __func__, __LINE__);
 
 	/*
 	 * Step two: Create shmfd.
@@ -207,13 +198,11 @@ load_library(HIJACK *hijack, char *path)
 		/* shm_open2 failed */
 		return (-1);
 	}
-	fprintf(stderr, "%s:%d here\n", __func__, __LINE__);
 
 	if (_continue_and_wait(hijack, regs_backup, true) == false) {
 		printf("could not continue and wait\n");
 		return (-1);
 	}
-	fprintf(stderr, "%s:%d here\n", __func__, __LINE__);
 
 	library->remote_fd = psr.pscr_ret.sr_retval[0];
 	if (library->remote_fd < 0) {
@@ -262,12 +251,6 @@ load_library(HIJACK *hijack, char *path)
 		return (-1);
 	}
 
-	printf("sb.st_size: %zu\n", library->sb.st_size);
-	printf("write from 0x%016lx returned %li\n",
-	    library->scratch_addr + getpagesize(),
-	    (ssize_t)psr.pscr_ret.sr_retval[0]);
-	printf("write returned second %li\n", psr.pscr_ret.sr_retval[1]);
-
 	if (_continue_and_wait(hijack, regs_backup, true) == false) {
 		printf("could not continue and wait\n");
 		return (-1);
@@ -314,13 +297,6 @@ load_library(HIJACK *hijack, char *path)
 		perror("SetRegs");
 		return (-1);
 	}
-
-	printf("fdlopen @ 0x%016lx\n", library->fdlopen_addr);
-	printf("fd: %d, addr: %p\n", library->remote_fd,
-	    (void *)(library->scratch_addr));
-	printf("Stack address: 0x%016lx\n", GetStack(regs));
-	printf("uuid: %s\n", library->uuid);
-	printf("ret: %p\n", (void *)GetInstructionPointer(regs_backup));
 
 	ptrace(PT_CONTINUE, hijack->pid, (caddr_t)1, 0);
 	ptrace(PT_DETACH, hijack->pid, 0, 0);
