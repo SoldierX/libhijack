@@ -1,5 +1,6 @@
 *.o
 *.so*
+*.core
 src/.depend
 src/tags
 doc/*
