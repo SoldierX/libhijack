@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2018, Shawn Webb
- * All rights reserved.
+ * Copyright (c) 2018-2023, Shawn Webb <shawn.webb@hardenedbsd.org>
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions

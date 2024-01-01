@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2017, Shawn Webb
- * All rights reserved.
+ * Copyright (c) 2017-2023, Shawn Webb <shawn.webb@hardenedbsd.org>
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -132,4 +131,23 @@ SetRegister(REGS *regs, const char *reg, register_t val)
 		regs->x[0] = val;
 		return;
 	}
+}
+
+EXPORTED_SYM bool
+SetReturnAddress(HIJACK *hijack, REGS *regs, unsigned long retaddr)
+{
+	unsigned long stackaddr;
+	bool res;
+
+	res = true;
+	stackaddr = GetStack(regs);
+	stackaddr -= sizeof(stackaddr);
+	SetStack(regs, stackaddr);
+	if (SetRegs(hijack, regs)) {
+		fprintf(stderr, "%s: ptrace(PT_SETREGS): %s\n", __func__,
+		    strerror(errno));
+		return (false);
+	}
+
+	return (write_data(hijack, stackaddr, &retaddr, sizeof(retaddr)) == 0);
 }
