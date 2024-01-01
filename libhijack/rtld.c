@@ -299,7 +299,6 @@ LoadLibraryAnonymously(HIJACK *hijack, char *path)
 	}
 
 	ptrace(PT_CONTINUE, hijack->pid, (caddr_t)1, 0);
-	ptrace(PT_DETACH, hijack->pid, 0, 0);
 
 	return (0);
 }
