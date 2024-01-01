@@ -197,6 +197,8 @@ PLT *GetAllPLTs(HIJACK *);
 RTLD_SYM *resolv_rtld_sym(HIJACK *, char *);
 
 void ClearError(HIJACK *);
+int GetError(HIJACK *);
+const char *HijackErrorToString(int errcode);
 
 /* Machine-dependent code */
 register_t GetStack(REGS *);

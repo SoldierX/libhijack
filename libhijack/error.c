@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2023, Shawn Webb <shawn.webb@hardenedbsd.org>
+ * Copyright (c) 2011-2024, Shawn Webb <shawn.webb@hardenedbsd.org>
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -35,8 +35,12 @@
 
 #include "hijack.h"
 
-int SetError(HIJACK *hijack, int errorCode)
+int
+SetError(HIJACK *hijack, int errorCode)
 {
+	if (hijack == NULL) {
+		return (ERROR_BADARG);
+	}
 
 	hijack->lastErrorCode = errorCode;
 	return (errorCode);
@@ -47,8 +51,54 @@ int SetError(HIJACK *hijack, int errorCode)
  * @param hijack Pointer to the HIJACK instance
  * \ingroup libhijack
  */
-EXPORTED_SYM void ClearError(HIJACK *hijack)
+EXPORTED_SYM void
+ClearError(HIJACK *hijack)
 {
 
 	hijack->lastErrorCode = ERROR_NONE;
+}
+
+EXPORTED_SYM int
+GetError(HIJACK *hijack)
+{
+	if (hijack == NULL) {
+		return (ERROR_BADARG);
+	}
+
+	return (hijack->lastErrorCode);
+}
+
+EXPORTED_SYM const char *
+HijackErrorToString(int errcode)
+{
+	switch (errcode) {
+	case ERROR_NONE:
+		return ("No error");
+	case ERROR_ATTACHED:
+		return ("Already attached");
+	case ERROR_NOTATTACHED:
+		return ("Not attached");
+	case ERROR_BADPID:
+		return ("Bad PID");
+	case ERROR_SYSCALL:
+		return ("System call failure");
+	case ERROR_NOTIMPLEMENTED:
+		return ("Not implemented");
+	case ERROR_BADARG:
+		return ("Bad argument(s)");
+	case ERROR_CHILDERROR:
+		return ("Error in child process");
+	case ERROR_NEEDED:
+		return ("Needed functionality nonfunctional");
+	case ERROR_NOTSUPP:
+		return ("Not supported");
+	case ERROR_NOMEM:
+		return ("Out of memory");
+	case ERROR_FILEACCESS:
+		return ("Could not access file(s)");
+	case ERROR_CHILDSYSCALL:
+		return ("System call failure in child process");
+	}
+
+	return ("Unknown error");
 }
