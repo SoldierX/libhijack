@@ -77,7 +77,8 @@ static bool _continue_and_wait(HIJACK *, REGS *, bool);
 EXPORTED_SYM int
 LoadLibraryAnonymously(HIJACK *hijack, char *path)
 {
-	struct ptrace_sc_remote psr;
+	struct ptrace_sc_ret *scret;
+	HIJACK_REMOTE_ARGS *scargs;
 	unsigned long curaddr, val;
 	remote_library_t *library;
 	REGS *regs, *regs_backup;
@@ -88,6 +89,7 @@ LoadLibraryAnonymously(HIJACK *hijack, char *path)
 	size_t i;
 
 	error = ERROR_NONE;
+	scargs = NULL;
 
 	if (hijack == NULL || path == NULL) {
 		printf("hijack or path is null\n");
@@ -174,109 +176,144 @@ LoadLibraryAnonymously(HIJACK *hijack, char *path)
 		goto end;
 	}
 
-	memset(&psr, 0, sizeof(psr));
-	psr.pscr_syscall = SYS_shm_open2;
-	psr.pscr_nargs = 5;
-	psr.pscr_args = calloc(psr.pscr_nargs, sizeof(unsigned long));
-	if (psr.pscr_args == NULL) {
+	scargs = hijack_remote_args_new(hijack, 0);
+	if (scargs == NULL) {
 		error = ERROR_NOMEM;
 		goto end;
 	}
+	hijack_remote_args_set_syscall(scargs, SYS_shm_open2);
+	if (hijack_remote_args_add_arg(scargs,
+	    (syscallarg_t)SHM_ANON) == NULL) {
+		error = ERROR_NOMEM;
+		goto end;
+	}
+	if (hijack_remote_args_add_arg(scargs, O_RDWR) == NULL) {
+		error = ERROR_NOMEM;
+		goto end;
+	}
+	if (hijack_remote_args_add_arg(scargs, 0) == NULL) {
+		error = ERROR_NOMEM;
+		goto end;
+	}
+	if (hijack_remote_args_add_arg(scargs, SHM_GROW_ON_WRITE) == NULL) {
+		error = ERROR_NOMEM;
+		goto end;
+	}
+	if (hijack_remote_args_add_arg(scargs, library->scratch_addr) == NULL) {
+		error = ERROR_NOMEM;
+		goto end;
+	}
+	if (perform_remote_syscall(scargs)) {
+		error = GetError(hijack);
+		goto end;
+	}
 
-	psr.pscr_args[0] = (long)SHM_ANON;
-	psr.pscr_args[1] = O_RDWR;
-	psr.pscr_args[2] = 0;
-	psr.pscr_args[3] = SHM_GROW_ON_WRITE;
-	psr.pscr_args[4] = library->scratch_addr;
-	if (ptrace(PT_SC_REMOTE, hijack->pid, (caddr_t)&psr, sizeof(psr))) {
+	scret = hijack_remote_args_get_syscall_ret(scargs);
+
+	if (scret->sr_error) {
 		error = ERROR_CHILDSYSCALL;
 		goto end;
 	}
 
-	if (psr.pscr_ret.sr_error) {
-		error = ERROR_CHILDSYSCALL;
-		goto end;
-	}
-
-	if (_continue_and_wait(hijack, regs_backup, true) == false) {
-		error = ERROR_CHILDERROR;
-		goto end;
-	}
-
-	library->remote_fd = psr.pscr_ret.sr_retval[0];
+	library->remote_fd = scret->sr_retval[0];
 	if (library->remote_fd < 0) {
 		error = ERROR_CHILDSYSCALL;
 		goto end;
 	}
 
+	hijack_remote_args_free(&scargs, HIJACK_REMOTE_FREE_DEFAULT);
+
 	/* Step three: size the memfd appropriately */
 
-	memset(psr.pscr_args, 0, sizeof(unsigned long) * psr.pscr_nargs);
-	psr.pscr_nargs = 2;
-	psr.pscr_args[0] = library->remote_fd;
-	psr.pscr_args[1] = library->sb.st_size;
-	psr.pscr_syscall = SYS_ftruncate;
-	if (ptrace(PT_SC_REMOTE, hijack->pid, (caddr_t)&psr, sizeof(psr))) {
-		error = ERROR_SYSCALL;
+	scargs = hijack_remote_args_new(hijack, 0);
+	if (scargs == NULL) {
+		error = ERROR_NOMEM;
 		goto end;
 	}
 
-	if (psr.pscr_ret.sr_error) {
-		error = ERROR_CHILDSYSCALL;
+	hijack_remote_args_set_syscall(scargs, SYS_ftruncate);
+
+	if (hijack_remote_args_add_arg(scargs, library->remote_fd) == NULL) {
+		error = ERROR_NOMEM;
 		goto end;
 	}
 
-	if (_continue_and_wait(hijack, regs_backup, true) == false) {
-		error = ERROR_SYSCALL;
+	if (hijack_remote_args_add_arg(scargs, library->sb.st_size) == NULL) {
+		error = ERROR_NOMEM;
 		goto end;
 	}
+
+	if (perform_remote_syscall(scargs)) {
+		error = GetError(hijack);
+		goto end;
+	}
+
+	hijack_remote_args_free(&scargs, HIJACK_REMOTE_FREE_DEFAULT);
 
 	/* Step four: write to the memfd */
 
-	memset(psr.pscr_args, 0, sizeof(unsigned long) * psr.pscr_nargs);
-	memset(&(psr.pscr_ret), 0, sizeof(psr.pscr_ret));
-	psr.pscr_nargs = 3;
-	psr.pscr_args[0] = library->remote_fd;
-	psr.pscr_args[1] = library->scratch_addr + getpagesize();
-	psr.pscr_args[2] = library->sb.st_size;
-	psr.pscr_syscall = SYS_write;
-	if (ptrace(PT_SC_REMOTE, hijack->pid, (caddr_t)&psr, sizeof(psr))) {
-		error = ERROR_SYSCALL;
+	scargs = hijack_remote_args_new(hijack, 0);
+	if (scargs == NULL) {
+		error = ERROR_NOMEM;
 		goto end;
 	}
 
-	if (psr.pscr_ret.sr_error) {
-		error = ERROR_CHILDSYSCALL;
+	hijack_remote_args_set_syscall(scargs, SYS_write);
+
+	if (hijack_remote_args_add_arg(scargs, library->remote_fd) == NULL) {
+		error = ERROR_NOMEM;
 		goto end;
 	}
 
-	if (_continue_and_wait(hijack, regs_backup, true) == false) {
-		error = ERROR_SYSCALL;
+	if (hijack_remote_args_add_arg(scargs,
+	    library->scratch_addr + getpagesize()) == NULL) {
+		error = ERROR_NOMEM;
 		goto end;
 	}
+
+	if (hijack_remote_args_add_arg(scargs, library->sb.st_size) == NULL) {
+		error = ERROR_NOMEM;
+		goto end;
+	}
+
+	if (perform_remote_syscall(scargs)) {
+		error = GetError(hijack);
+		goto end;
+	}
+
+	hijack_remote_args_free(&scargs, HIJACK_REMOTE_FREE_DEFAULT);
 
 	/* Step five: seek to beginning */
 
-	memset(psr.pscr_args, 0, sizeof(unsigned long) * psr.pscr_nargs);
-	psr.pscr_nargs = 3;
-	psr.pscr_args[0] = library->remote_fd;
-	psr.pscr_args[1] = 0;
-	psr.pscr_args[2] = 0;
-	psr.pscr_syscall = SYS_lseek;
-	if (ptrace(PT_SC_REMOTE, hijack->pid, (caddr_t)&psr, sizeof(psr))) {
-		error = ERROR_SYSCALL;
+	scargs = hijack_remote_args_new(hijack, 0);
+	if (scargs == NULL) {
+		error = ERROR_NOMEM;
 		goto end;
 	}
 
-	if (psr.pscr_ret.sr_error || (ssize_t)psr.pscr_ret.sr_retval[0]) {
-		error = ERROR_CHILDSYSCALL;
+	hijack_remote_args_set_syscall(scargs, SYS_lseek);
+
+	if (hijack_remote_args_add_arg(scargs, library->remote_fd) == NULL) {
+		error = ERROR_NOMEM;
 		goto end;
 	}
 
-	if (_continue_and_wait(hijack, regs_backup, true) == false) {
-		error = ERROR_SYSCALL;
+	if (hijack_remote_args_add_arg(scargs, 0) == NULL) {
+		error = ERROR_NOMEM;
 		goto end;
 	}
+
+	if (hijack_remote_args_add_arg(scargs, 0) == NULL) {
+		error = ERROR_NOMEM;
+		goto end;
+	}
+
+	if (perform_remote_syscall(scargs)) {
+		error = GetError(hijack);
+		goto end;
+	}
+
+	hijack_remote_args_free(&scargs, HIJACK_REMOTE_FREE_DEFAULT);
 
 	regs = calloc(1, sizeof(*regs));
 	if (regs == NULL) {
@@ -298,6 +335,7 @@ LoadLibraryAnonymously(HIJACK *hijack, char *path)
 		goto end;
 	}
 
+	ptrace(PT_SETREGS, hijack->pid, (caddr_t)regs, 0);
 	ptrace(PT_CONTINUE, hijack->pid, (caddr_t)1, 0);
 
 	/*
@@ -306,6 +344,7 @@ LoadLibraryAnonymously(HIJACK *hijack, char *path)
 	 */
 
 end:
+	hijack_remote_args_free(&scargs, HIJACK_REMOTE_FREE_DEFAULT);
 	remote_library_free(&library);
 	return (SetError(hijack, error));
 }
