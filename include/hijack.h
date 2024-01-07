@@ -70,6 +70,12 @@
 #define	V_NONE		0
 #define	V_BASEADDR	1
 
+#define	HIJACK_REMOTE_FREE_PSR	0x1
+#define	HIJACK_REMOTE_FREE_REGS	0x2
+#define	HIJACK_REMOTE_FREE_DEFAULT	( \
+    HIJACK_REMOTE_FREE_PSR | \
+    HIJACK_REMOTE_FREE_REGS )
+
 typedef enum _rtld_sym_type { RTLD_SYM_UNKNOWN=0, RTLD_SYM_VAR=1, RTLD_SYM_FUNC=2 } RTLD_SYM_TYPE;
 
 typedef struct _rtld_sym {
@@ -143,6 +149,13 @@ typedef struct _hijack {
 	Obj_Entry *soe;
 } HIJACK;
 
+typedef struct _hijack_remote_args {
+	uint64_t		 hra_flags;
+	HIJACK			*hra_hijack;
+	struct ptrace_sc_remote	*hra_psr;
+	REGS			*hra_regs;
+} HIJACK_REMOTE_ARGS;
+
 struct mmap_arg_struct {
 	unsigned long addr;
 	unsigned long len;
@@ -186,6 +199,20 @@ int IterateObjectEntries(HIJACK *, soe_iterator);
 unsigned long FindFunctionInGot(HIJACK *, unsigned long, unsigned long);
 int LoadLibrary(HIJACK *, char *);
 int LoadLibraryAnonymously(HIJACK *, char *);
+
+HIJACK_REMOTE_ARGS *hijack_remote_args_new(HIJACK *, uint64_t);
+void hijack_remote_args_free(HIJACK_REMOTE_ARGS **, uint64_t);
+int perform_remote_syscall(HIJACK_REMOTE_ARGS *);
+bool hijack_remote_args_flags_sanity(uint64_t);
+bool hijack_remote_args_is_flag_set(HIJACK_REMOTE_ARGS *, uint64_t);
+uint64_t hijack_remote_args_get_flags(HIJACK_REMOTE_ARGS *);
+uint64_t hijack_remote_args_set_flags(HIJACK_REMOTE_ARGS *, uint64_t);
+uint64_t hijack_remote_args_set_flag(HIJACK_REMOTE_ARGS *, uint64_t);
+REGS *hijack_remote_args_get_regs(HIJACK_REMOTE_ARGS *);
+REGS *hijack_remote_args_set_regs(HIJACK_REMOTE_ARGS *, REGS *, bool);
+syscallarg_t *hijack_remote_args_add_arg(HIJACK_REMOTE_ARGS *, syscallarg_t);
+bool hijack_remote_args_set_syscall(HIJACK_REMOTE_ARGS *, unsigned int);
+struct ptrace_sc_ret *hijack_remote_args_get_syscall_ret(HIJACK_REMOTE_ARGS *);
 
 int LocateAllFunctions(HIJACK *);
 FUNC *FindAllFunctionsByName(HIJACK *, char *, bool);
