@@ -184,17 +184,16 @@ freebsd_parse_soe(HIJACK *hijack, struct Struct_Obj_Entry *soe, linkmap_callback
 
 	do
 	{
-		if ((libsym))
 		free(libsym);
 
 		libsym = (ElfW(Sym) *)read_data(hijack, (unsigned long)symaddr, sizeof(ElfW(Sym)));
-		if (!(libsym)) {
+		if (libsym == NULL) {
 			err = GetErrorCode(hijack);
 			goto notfound;
 		}
 
 		name = read_str(hijack, (unsigned long)(soe->strtab + libsym->st_name));
-		if ((name)) {
+		if (name != NULL) {
 			if (callback(hijack, soe,
 			    ELF64_ST_TYPE(libsym->st_info), name,
 			    ((unsigned long)(soe->mapbase) + libsym->st_value),
