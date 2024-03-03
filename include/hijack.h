@@ -176,6 +176,7 @@ typedef CBRESULT (*soe_iterator)(struct _hijack *, Obj_Entry *);
 int GetErrorCode(HIJACK *);
 const char *GetErrorString(HIJACK *);
 HIJACK *InitHijack(unsigned int);
+void FreeHijack(HIJACK **);
 bool IsFlagSet(HIJACK *, unsigned int);
 int ToggleFlag(HIJACK *, unsigned int);
 void *GetValue(HIJACK *, int);

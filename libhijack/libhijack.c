@@ -122,6 +122,25 @@ InitHijack(unsigned int flags)
 }
 
 /**
+ * Frees a HIJACK instance
+ * \ingroup libhijack
+ */
+void
+FreeHijack(HIJACK **hijackp)
+{
+	HIJACK *hijack;
+
+	if (hijackp == NULL || *hijackp == NULL) {
+		return;
+	}
+
+	hijack = *hijackp;
+	*hijackp = NULL;
+	free(hijack);
+	/* TODO: Free everything else */
+}
+
+/**
  * Returns boolean true if flag is set, false if not
  * @param hijack Pointer to HIJACK instance
  * @param flag Flag to check
