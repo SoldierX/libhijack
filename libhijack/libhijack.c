@@ -59,6 +59,10 @@ static int resolve_base_address(HIJACK *);
 EXPORTED_SYM int
 GetErrorCode(HIJACK *hijack)
 {
+	if (hijack == NULL) {
+		return (-1);
+	}
+
 	return hijack->lastErrorCode;
 }
 
@@ -70,6 +74,10 @@ GetErrorCode(HIJACK *hijack)
 EXPORTED_SYM const char *
 GetErrorString(HIJACK *hijack)
 {
+	if (hijack == NULL) {
+		return "hijack is NULL";
+	}
+
 	switch (hijack->lastErrorCode) {
 	case ERROR_NONE:
 		return "No Error";
@@ -162,6 +170,9 @@ IsFlagSet(HIJACK *hijack, unsigned int flag)
 EXPORTED_SYM int
 ToggleFlag(HIJACK *hijack, unsigned int flag)
 {
+	if (hijack == NULL) {
+		return (-1);
+	}
 
 	hijack->flags ^= flag;
 	
@@ -177,6 +188,9 @@ ToggleFlag(HIJACK *hijack, unsigned int flag)
 EXPORTED_SYM void *
 GetValue(HIJACK *hijack, int vkey)
 {
+	if (hijack == NULL) {
+		return (NULL);
+	}
 
 	switch (vkey) {
 	case V_BASEADDR:
@@ -196,6 +210,9 @@ GetValue(HIJACK *hijack, int vkey)
 EXPORTED_SYM int
 SetValue(HIJACK *hijack, int vkey, void *value)
 {
+	if (hijack == NULL || value == NULL) {
+		return (-1);
+	}
 
 	switch (vkey) {
 	case V_BASEADDR:
@@ -214,6 +231,9 @@ SetValue(HIJACK *hijack, int vkey, void *value)
 EXPORTED_SYM bool
 IsAttached(HIJACK *hijack)
 {
+	if (hijack == NULL) {
+		return (false);
+	}
 
 	return (hijack->isAttached);
 }
@@ -227,6 +247,9 @@ IsAttached(HIJACK *hijack)
 EXPORTED_SYM int
 AssignPid(HIJACK *hijack, pid_t pid)
 {
+	if (hijack == NULL) {
+		return (-1);
+	}
 
 	if (IsAttached(hijack))
 		return (SetError(hijack, ERROR_ATTACHED));
@@ -248,6 +271,10 @@ EXPORTED_SYM int
 Attach(HIJACK *hijack)
 {
 	int status;
+
+	if (hijack == NULL) {
+		return (-1);
+	}
 	
 	if (IsAttached(hijack))
 		return (SetError(hijack, ERROR_ATTACHED));
@@ -314,6 +341,10 @@ EXPORTED_SYM int
 LocateSystemCall(HIJACK *hijack)
 {
 	Obj_Entry *soe, *next;
+
+	if (hijack == NULL) {
+		return (-1);
+	}
 	
 	if (IsAttached(hijack) == false)
 		return (SetError(hijack, ERROR_NOTATTACHED));
@@ -359,6 +390,10 @@ EXPORTED_SYM int
 ReadData(HIJACK *hijack, unsigned long addr, unsigned char *buf, size_t sz)
 {
 	void *p;
+
+	if (hijack == NULL) {
+		return (-1);
+	}
 	
 	if (!(buf) || !sz)
 		return (SetError(hijack, ERROR_BADARG));
@@ -381,6 +416,9 @@ ReadData(HIJACK *hijack, unsigned long addr, unsigned char *buf, size_t sz)
 EXPORTED_SYM char *
 ReadString(HIJACK *hijack, unsigned long base)
 {
+	if (hijack == NULL) {
+		return (NULL);
+	}
 
 	return (read_str(hijack, base));
 }
@@ -396,6 +434,9 @@ ReadString(HIJACK *hijack, unsigned long base)
 EXPORTED_SYM int
 WriteData(HIJACK *hijack, unsigned long addr, unsigned char *buf, size_t sz)
 {
+	if (hijack == NULL) {
+		return (-1);
+	}
 
 	if (!(buf) || !sz)
 		return (SetError(hijack, ERROR_BADARG));
@@ -418,6 +459,9 @@ WriteData(HIJACK *hijack, unsigned long addr, unsigned char *buf, size_t sz)
 EXPORTED_SYM unsigned long
 MapMemory(HIJACK *hijack, unsigned long addr, size_t sz, unsigned long prot, unsigned long flags)
 {
+	if (hijack == NULL) {
+		return (0);
+	}
 
 	if (!IsAttached(hijack))
 		return (SetError(hijack, ERROR_NOTATTACHED));
@@ -431,6 +475,10 @@ InjectShellcodeAndRun(HIJACK *hijack, unsigned long addr, const char *path, bool
 	struct stat sb;
 	int err, fd;
 	void *map;
+
+	if (hijack == NULL) {
+		return (-1);
+	}
 
 	memset(&sb, 0x00, sizeof(sb));
 	map = NULL;
@@ -470,6 +518,10 @@ InjectShellcodeFromMemoryAndRun(HIJACK *hijack, unsigned long addr,
 	REGS *regs;
 	int err;
 	register_t stackp, retp;
+
+	if (hijack == NULL) {
+		return (-1);
+	}
 
 	err = ERROR_NONE;
 
@@ -522,6 +574,10 @@ EXPORTED_SYM REGS *
 GetRegs(HIJACK *hijack)
 {
 	REGS *ret;
+
+	if (hijack == NULL) {
+		return (NULL);
+	}
 	
 	if (!IsAttached(hijack)) {
 		SetError(hijack, ERROR_NOTATTACHED);
@@ -550,6 +606,9 @@ GetRegs(HIJACK *hijack)
 EXPORTED_SYM int
 SetRegs(HIJACK *hijack, REGS *regs)
 {
+	if (hijack == NULL || regs == NULL) {
+		return (-1);
+	}
 
 	if (!IsAttached(hijack))
 		return (SetError(hijack, ERROR_NOTATTACHED));
@@ -570,6 +629,9 @@ SetRegs(HIJACK *hijack, REGS *regs)
 EXPORTED_SYM unsigned long
 FindFunctionInGot(HIJACK *hijack, unsigned long pltaddr, unsigned long addr)
 {
+	if (hijack == NULL) {
+		return (0);
+	}
 
 	return (find_func_addr_in_got(hijack, pltaddr, addr));
 }
@@ -577,6 +639,9 @@ FindFunctionInGot(HIJACK *hijack, unsigned long pltaddr, unsigned long addr)
 EXPORTED_SYM int
 LoadLibrary(HIJACK *hijack, char *lib)
 {
+	if (hijack == NULL) {
+		return (-1);
+	}
 
 	return (LoadLibraryAnonymously(hijack, lib));
 }
@@ -586,6 +651,10 @@ IterateObjectEntries(HIJACK *hijack, soe_iterator iterator)
 {
 	Obj_Entry *soe;
 	void *next;
+
+	if (hijack == NULL || iterator == NULL) {
+		return (-1);
+	}
 
 	if (!IsAttached(hijack)) {
 		return (SetError(hijack, ERROR_NOTATTACHED));
@@ -624,6 +693,10 @@ resolve_base_address(HIJACK *hijack)
 	unsigned int i, cnt;
 	int err;
 	ElfW(Ehdr) *ehdr;
+
+	if (hijack == NULL) {
+		return (-1);
+	}
 
 	vm = NULL;
 	p = NULL;
@@ -693,6 +766,10 @@ int
 init_hijack_system(HIJACK *hijack)
 {
 	int err;
+
+	if (hijack == NULL) {
+		return (-1);
+	}
 
 	if (!IsAttached(hijack))
 		return (SetError(hijack, ERROR_NOTATTACHED));
